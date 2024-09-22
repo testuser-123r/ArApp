@@ -2,19 +2,140 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>AR-Website</title>
+    <title>AR Ball Schlag App</title>
+    <!-- A-Frame Bibliothek -->
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <!-- AR.js für A-Frame -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.js"></script>
+    <!-- TensorFlow.js und Handpose Modell -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.20.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose@0.0.7/dist/handpose.min.js"></script>
+    <!-- Drei.js für zusätzliche 3D-Funktionen -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; }
+        #videoElement {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 320px;
+            height: 240px;
+            opacity: 0.5;
+            z-index: 1;
+        }
     </style>
 </head>
 <body>
+    <!-- Video-Element für die Handerkennung -->
+    <video id="videoElement" autoplay></video>
+
     <a-scene embedded arjs>
+        <!-- Marker -->
         <a-marker preset="hiro">
-            <a-box position='0 0.5 0' material='color: blue;'></a-box>
+            <!-- Fallender Ball -->
+            <a-sphere id="ball" position="0 1 0" radius="0.1" color="red" dynamic-body></a-sphere>
         </a-marker>
+        <!-- Kamera -->
         <a-entity camera></a-entity>
     </a-scene>
+
+    <script>
+        // Initialisierung von Handpose
+        let model;
+        const video = document.getElementById('videoElement');
+
+        // Zugriff auf die Webcam
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+                video.play();
+                // Nach dem Laden des Videos Modell laden
+                video.onloadedmetadata = () => {
+                    loadHandposeModel();
+                };
+            })
+            .catch(err => {
+                console.error("Fehler beim Zugriff auf die Webcam: ", err);
+            });
+
+        // Laden des Handpose-Modells
+        async function loadHandposeModel() {
+            model = await handpose.load();
+            console.log("Handpose Modell geladen");
+            detectHands();
+        }
+
+        // Funktion zur Handerkennung
+        async function detectHands() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            async function frameLandmarks() {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const predictions = await model.estimateHands(video);
+
+                if (predictions.length > 0) {
+                    const hand = predictions[0];
+                    const indexFinger = hand.landmarks[8]; // Spitze des Zeigefingers
+
+                    // Transformation der Handposition in A-Frame Koordinaten
+                    const aScene = document.querySelector('a-scene').object3D;
+                    const vector = new THREE.Vector3(
+                        (indexFinger[0] / video.width) * 2 - 1,
+                        -(indexFinger[1] / video.height) * 2 + 1,
+                        0.5
+                    );
+                    vector.unproject(aScene.camera);
+                    const dir = vector.sub(aScene.camera.position).normalize();
+                    const distance = -aScene.camera.position.z / dir.z;
+                    const pos = aScene.camera.position.clone().add(dir.multiplyScalar(distance));
+
+                    // Prüfen, ob die Hand den Ball berührt
+                    const ball = document.getElementById('ball');
+                    const ballPos = new THREE.Vector3();
+                    ball.object3D.getWorldPosition(ballPos);
+
+                    const distanceToBall = pos.distanceTo(ballPos);
+                    if (distanceToBall < 0.2) { // Schwellenwert anpassen
+                        // Ball nach oben schießen
+                        ball.setAttribute('position', `${ballPos.x} ${ballPos.y + 0.5} ${ballPos.z}`);
+                        // Optional: Physik hinzufügen oder Geschwindigkeit erhöhen
+                    }
+                }
+
+                requestAnimationFrame(frameLandmarks);
+            }
+
+            frameLandmarks();
+        }
+
+        // Einfaches Physik-Setup für den Ball
+        AFRAME.registerComponent('dynamic-body', {
+            init: function () {
+                this.el.setAttribute('velocity', '0 -1 0'); // Anfangsgeschwindigkeit nach unten
+            },
+            tick: function (time, timeDelta) {
+                let velocity = this.el.getAttribute('velocity');
+                let position = this.el.getAttribute('position');
+
+                // Einfache Schwerkraft
+                velocity.y -= 0.001 * timeDelta;
+
+                // Aktualisieren der Position
+                position.x += velocity.x * timeDelta / 1000;
+                position.y += velocity.y * timeDelta / 1000;
+                position.z += velocity.z * timeDelta / 1000;
+
+                // Bodenprüfung (y = 0)
+                if (position.y < 0) {
+                    position.y = 0;
+                    velocity.y = 0;
+                }
+
+                this.el.setAttribute('velocity', velocity);
+                this.el.setAttribute('position', position);
+            }
+        });
+    </script>
 </body>
 </html>
