@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- A-Frame Library -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <!-- A-Frame Extras für AR-Integration -->
+    <!-- A-Frame Extras für zusätzliche Features -->
     <script src="https://unpkg.com/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
     <style>
         body { margin: 0; overflow: hidden; }
@@ -62,7 +62,7 @@
     <div id="gameOver">Spiel Vorbei!</div>
     <button id="startButton">Starte AR</button>
 
-    <a-scene embedded arjs='sourceType: webcam;' vr-mode-ui="enabled: false">
+    <a-scene embedded arjs='sourceType: webcam;' vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         <!-- Kamera -->
         <a-entity camera></a-entity>
 
@@ -124,12 +124,12 @@
             ball.setAttribute('data-start-time', Date.now());
         }
 
-        // Ball-Spawning Interval
+        // Ball-Spawning Interval starten
         function startSpawning() {
             ballSpawner = setInterval(spawnBall, spawnInterval);
         }
 
-        // Update-Funktion
+        // Update-Funktion zum Aktualisieren der Position der Bälle
         function updateBalls() {
             if (gameOver) return;
 
@@ -155,7 +155,7 @@
             updateLoop = requestAnimationFrame(updateBalls);
         }
 
-        // End Game Funktion
+        // Funktion zum Beenden des Spiels
         function endGame() {
             gameOver = true;
             clearInterval(ballSpawner);
@@ -163,7 +163,7 @@
             gameOverElement.style.display = 'block';
         }
 
-        // Start Game Funktion
+        // Funktion zum Starten des Spiels
         function startGame() {
             startButton.style.display = 'none';
             scene.style.display = 'block';
@@ -171,7 +171,7 @@
             updateBalls();
         }
 
-        // Event Listener für Start-Button
+        // Event Listener für den Start-Button
         startButton.addEventListener('click', startGame);
 
         // Initiale Szene verstecken, bis der Start-Button gedrückt wird
@@ -192,3 +192,4 @@
     </script>
 </body>
 </html>
+
