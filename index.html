@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <title>Interaktives AR-Ball Beispiel</title>
   <!-- A-Frame Bibliothek -->
-  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <!-- AR.js für A-Frame -->
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.min.js"></script>
   <style>
     body, html {
       margin: 0;
@@ -14,14 +14,14 @@
       overflow: hidden;
       height: 100%;
       width: 100%;
-      background-color: #000; /* Schwarz als Hintergrund, um den Kamerastream besser sichtbar zu machen */
+      background-color: #000; /* Hintergrund schwarz für besseren Kontrast */
     }
     #score {
       position: absolute;
       top: 10px;
       left: 10px;
       color: white;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0,0,0,0.7);
       padding: 10px;
       border-radius: 5px;
       font-family: Arial, sans-serif;
@@ -33,7 +33,7 @@
       left: 50%;
       transform: translateX(-50%);
       color: white;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0,0,0,0.7);
       padding: 10px;
       border-radius: 5px;
       font-family: Arial, sans-serif;
@@ -48,8 +48,10 @@
   <!-- AR-Szene -->
   <a-scene 
     embedded 
-    arjs="sourceType: webcam; debugUIEnabled: true;" 
+    arjs="sourceType: webcam; debugUIEnabled: false;" 
     renderer="logarithmicDepthBuffer: true; colorManagement: true;"
+    vr-mode-ui="enabled: false"
+    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
   >
     <!-- Lichtquellen -->
     <a-entity light="type: ambient; color: #FFFFFF"></a-entity>
@@ -138,6 +140,7 @@
   </script>
 </body>
 </html>
+
 
 
 
