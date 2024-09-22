@@ -1,211 +1,130 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <title>Markerlose AR Ball Game</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- A-Frame Library -->
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <!-- A-Frame Extras für Hit-Test Unterstützung -->
-    <script src="https://unpkg.com/aframe-xr-hit-test-component@1.3.0/dist/aframe-xr-hit-test-component.min.js"></script>
-    <style>
-        body { margin: 0; overflow: hidden; }
-        #score {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 24px;
-            color: white;
-            z-index: 1;
-            font-family: Arial, sans-serif;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 10px 20px;
-            border-radius: 10px;
-        }
-        #gameOver {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 36px;
-            color: red;
-            display: none;
-            z-index: 1;
-            font-family: Arial, sans-serif;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 20px 40px;
-            border-radius: 15px;
-        }
-        /* Button Styling */
-        #startButton {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 15px 30px;
-            font-size: 18px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            z-index: 1;
-        }
-        #startButton:hover {
-            background-color: #218838;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Interaktives AR-Ball Beispiel</title>
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.min.js"></script>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      width: 100%;
+      background-color: #000;
+    }
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      background: rgba(0,0,0,0.5);
+      padding: 10px;
+      border-radius: 5px;
+      font-family: Arial, sans-serif;
+      z-index: 1;
+    }
+  </style>
 </head>
 <body>
-    <div id="score">Punkte: 0</div>
-    <div id="gameOver">Spiel Vorbei!</div>
-    <button id="startButton">Starte AR</button>
+  <!-- Anzeige für den Punktestand -->
+  <div id="score">Punkte: 0</div>
 
-    <a-scene
-        embedded
-        vr-mode-ui="enabled: false"
-        xrweb="optionalFeatures: hit-test;"
-        renderer="colorManagement: true; antialias: true"
-    >
-        <!-- Kamera -->
-        <a-entity camera></a-entity>
+  <a-scene 
+    embedded 
+    arjs="sourceType: webcam; debugUIEnabled: false;" 
+    renderer="logarithmicDepthBuffer: true;"
+  >
+    <!-- Lichtquelle -->
+    <a-entity light="type: ambient; color: #FFFFFF"></a-entity>
+    <a-entity light="type: directional; color: #FFFFFF; intensity: 0.5" position="0 1 1"></a-entity>
 
-        <!-- Lichtquellen -->
-        <a-entity light="type: ambient; color: #FFFFFF"></a-entity>
-        <a-entity light="type: directional; color: #FFFFFF; intensity: 0.5" position="1 1 1"></a-entity>
+    <!-- Marker -->
+    <a-marker preset="hiro" id="marker">
+      <!-- Ball -->
+      <a-sphere 
+        id="ball" 
+        position="0 0.5 0" 
+        radius="0.5" 
+        color="#FF0000"
+        animation__rotate="property: rotation; to: 0 360 0; loop: true; dur: 2000; easing: linear"
+        class="clickable"
+      ></a-sphere>
+    </a-marker>
 
-        <!-- Bereich, in dem die Bälle spawnen -->
-        <a-entity id="spawnArea" position="0 0 0"></a-entity>
-    </a-scene>
+    <!-- Kamera -->
+    <a-entity camera></a-entity>
+  </a-scene>
 
-    <script>
-        // Initialisierung der Variablen
-        let score = 0;
-        const scoreElement = document.getElementById('score');
-        const gameOverElement = document.getElementById('gameOver');
-        const startButton = document.getElementById('startButton');
-        const scene = document.querySelector('a-scene');
-        const spawnArea = document.getElementById('spawnArea');
-        const balls = [];
-        let gameOver = false;
-        let ballSpawner;
-        let updateLoop;
+  <!-- Hinweis für den Benutzer -->
+  <div style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); color: white; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; font-family: Arial, sans-serif;">
+    📷 Richte deine Kamera auf einen Hiro-Marker und klicke/tippe auf den Ball, um ihn wegzuschlagen!
+  </div>
 
-        // Einstellungen
-        const spawnInterval = 2000; // in Millisekunden
-        const fallDuration = 3000; // in Millisekunden (3 Sekunden zum Fallen)
+  <script>
+    // Initialisiere Punktestand
+    let score = 0;
+    const scoreElement = document.getElementById('score');
 
-        // Funktion zum Spawnen von Bällen
-        function spawnBall(position) {
-            if (gameOver) return;
+    // Funktion zum Aktualisieren des Punktestands
+    function updateScore() {
+      score += 1;
+      scoreElement.textContent = 'Punkte: ' + score;
+    }
 
-            const ball = document.createElement('a-sphere');
-            ball.setAttribute('position', position);
-            ball.setAttribute('radius', 0.05);
-            ball.setAttribute('color', '#FF0000');
-            ball.setAttribute('class', 'ball');
+    // Funktion zum Erzeugen eines neuen Balls
+    function spawnBall() {
+      const marker = document.getElementById('marker');
+      const existingBall = document.getElementById('ball');
 
-            // Event Listener für das Treffen des Balls
-            ball.addEventListener('click', () => {
-                if (gameOver) return;
-                scene.removeChild(ball);
-                const index = balls.indexOf(ball);
-                if (index > -1) {
-                    balls.splice(index, 1);
-                }
-                score += 1;
-                scoreElement.innerText = `Punkte: ${score}`;
-            });
+      if (existingBall) {
+        // Entferne den bestehenden Ball mit einer kleinen Verzögerung für die Animation
+        existingBall.setAttribute('visible', 'false');
+        existingBall.parentNode.removeChild(existingBall);
+      }
 
-            spawnArea.appendChild(ball);
-            balls.push(ball);
+      // Erzeuge einen neuen Ball
+      const newBall = document.createElement('a-sphere');
+      newBall.setAttribute('id', 'ball');
+      newBall.setAttribute('position', '0 0.5 0');
+      newBall.setAttribute('radius', '0.5');
+      newBall.setAttribute('color', '#FF0000');
+      newBall.setAttribute('animation__rotate', 'property: rotation; to: 0 360 0; loop: true; dur: 2000; easing: linear');
+      newBall.setAttribute('class', 'clickable');
 
-            // Set start time
-            ball.setAttribute('data-start-time', Date.now());
+      // Füge einen Event-Listener für Klicks/Taps hinzu
+      newBall.addEventListener('click', () => {
+        // Aktualisiere den Punktestand
+        updateScore();
+        // Erzeuge einen neuen Ball
+        spawnBall();
+      });
+
+      // Füge den neuen Ball zum Marker hinzu
+      marker.appendChild(newBall);
+    }
+
+    // Warte, bis das A-Frame geladen ist
+    document.addEventListener('DOMContentLoaded', () => {
+      // Füge einen Event-Listener hinzu, der ausgelöst wird, wenn der Marker erkannt wird
+      const marker = document.getElementById('marker');
+      marker.addEventListener('markerFound', () => {
+        // Spawne den ersten Ball
+        spawnBall();
+      });
+
+      marker.addEventListener('markerLost', () => {
+        // Entferne den Ball, wenn der Marker nicht mehr sichtbar ist
+        const existingBall = document.getElementById('ball');
+        if (existingBall) {
+          existingBall.parentNode.removeChild(existingBall);
         }
-
-        // Funktion zum Starten des Spawning-Intervalls
-        function startSpawning() {
-            ballSpawner = setInterval(() => {
-                // Kein explizites Hit-Test, da Objekte durch Hit-Test-Platzierung erstellt werden
-            }, spawnInterval);
-        }
-
-        // Update-Funktion zum Aktualisieren der Position der Bälle
-        function updateBalls() {
-            if (gameOver) return;
-
-            const currentTime = Date.now();
-
-            for (let i = balls.length - 1; i >= 0; i--) {
-                const ball = balls[i];
-                const pos = ball.getAttribute('position');
-                const startTime = ball.getAttribute('data-start-time') || currentTime;
-                const elapsed = currentTime - startTime;
-
-                // Berechne die neue y-Position basierend auf der verstrichenen Zeit
-                const newY = pos.y - (1 * (elapsed / fallDuration)); // Geschwindigkeit anpassen
-
-                ball.setAttribute('position', `${pos.x} ${newY} ${pos.z}`);
-
-                // Überprüfen, ob der Ball den Boden erreicht hat
-                if (elapsed >= fallDuration) {
-                    endGame();
-                    break;
-                }
-            }
-
-            updateLoop = requestAnimationFrame(updateBalls);
-        }
-
-        // Funktion zum Beenden des Spiels
-        function endGame() {
-            gameOver = true;
-            clearInterval(ballSpawner);
-            cancelAnimationFrame(updateLoop);
-            gameOverElement.style.display = 'block';
-        }
-
-        // Funktion zum Starten des Spiels
-        function startGame() {
-            startButton.style.display = 'none';
-            scene.style.display = 'block';
-            startSpawning();
-            updateBalls();
-        }
-
-        // Event Listener für den Start-Button
-        startButton.addEventListener('click', () => {
-            // Prüfen, ob WebXR unterstützt wird
-            if (navigator.xr) {
-                navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
-                    if (supported) {
-                        startGame();
-                    } else {
-                        alert('AR wird auf deinem Gerät nicht unterstützt.');
-                    }
-                });
-            } else {
-                alert('WebXR wird von deinem Browser nicht unterstützt.');
-            }
-        });
-
-        // Hit-Test Event Listener
-        scene.addEventListener('hit-test', (event) => {
-            if (gameOver) return;
-
-            const hit = event.detail.hit;
-            if (hit) {
-                const position = hit.pose.transform.position;
-                spawnBall(`${position.x} ${position.y} ${position.z}`);
-            }
-        });
-
-        // Sicherstellen, dass die Szene erst sichtbar ist, wenn AR gestartet wird
-        scene.style.display = 'none';
-    </script>
+      });
+    });
+  </script>
 </body>
 </html>
+
 
 
