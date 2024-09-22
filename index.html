@@ -14,16 +14,41 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; height: 100%; width: 100%; }
-        #videoElement {
-            display: none; /* Video-Element verstecken */
+        #score {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 24px;
+            z-index: 2;
+            font-family: Arial, sans-serif;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: red;
+            font-size: 48px;
+            z-index: 2;
+            display: none;
+            font-family: Arial, sans-serif;
         }
     </style>
 </head>
 <body>
-    <!-- Video-Element für die Handerkennung (verborgen) -->
-    <video id="videoElement" autoplay playsinline></video>
+    <!-- Anzeige der Punktzahl -->
+    <div id="score">Punkte: 0</div>
+    <!-- Anzeige für Spielende -->
+    <div id="gameOver">Spiel beendet!</div>
 
-    <a-scene embedded arjs='sourceType: webcam;' vr-mode-ui="enabled: false" renderer="logarithmicDepthBuffer: true;">
+    <a-scene 
+        embedded 
+        arjs='sourceType: webcam;' 
+        vr-mode-ui="enabled: false" 
+        renderer="logarithmicDepthBuffer: true; antialias: true;" 
+        fullscreen="true"
+    >
         <!-- Marker -->
         <a-marker preset="hiro">
             <!-- Fallender Ball -->
@@ -34,23 +59,24 @@
     </a-scene>
 
     <script>
-        // Initialisierung von Handpose
+        // Initialisierung von Variablen
         let model;
-        const video = document.getElementById('videoElement');
+        let score = 0;
+        let gameOver = false;
+        const scoreElement = document.getElementById('score');
+        const gameOverElement = document.getElementById('gameOver');
 
-        // Zugriff auf die Webcam
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
-            .then(stream => {
-                video.srcObject = stream;
-                video.play();
-                // Nach dem Laden des Videos Modell laden
-                video.onloadeddata = () => {
-                    loadHandposeModel();
-                };
-            })
-            .catch(err => {
-                console.error("Fehler beim Zugriff auf die Webcam: ", err);
-            });
+        // Funktion zum Aktualisieren der Punktzahl
+        function updateScore() {
+            score += 1;
+            scoreElement.innerText = `Punkte: ${score}`;
+        }
+
+        // Funktion zum Beenden des Spiels
+        function endGame() {
+            gameOver = true;
+            gameOverElement.style.display = 'block';
+        }
 
         // Laden des Handpose-Modells
         async function loadHandposeModel() {
@@ -65,7 +91,16 @@
             const camera = document.querySelector('[camera]').getObject3D('camera');
             const ball = document.getElementById('ball');
 
+            // Zugriff auf das Video-Element von AR.js
+            const video = document.querySelector('video');
+            if (!video) {
+                console.error("Kein Video-Element gefunden.");
+                return;
+            }
+
             async function frameLandmarks() {
+                if (gameOver) return;
+
                 const predictions = await model.estimateHands(video, true);
 
                 if (predictions.length > 0) {
@@ -90,9 +125,16 @@
                     // Schwellenwert anpassen je nach Größe des Balls und Handerkennung
                     if (distanceToBall < 0.2) {
                         console.log("Ball getroffen!");
-                        // Ball nach oben schießen
-                        ball.setAttribute('position', `${ballPos.x} ${ballPos.y + 0.5} ${ballPos.z}`);
+                        updateScore();
+                        // Ball neu positionieren
+                        resetBall();
                     }
+                }
+
+                // Prüfen, ob der Ball den Boden erreicht hat
+                const ballPosY = ball.getAttribute('position').y;
+                if (ballPosY < -0.5) { // y-Wert anpassen je nach Szene
+                    endGame();
                 }
 
                 requestAnimationFrame(frameLandmarks);
@@ -101,30 +143,33 @@
             frameLandmarks();
         }
 
-        // Einfaches Physik-Setup für den Ball
+        // Funktion zum Zurücksetzen der Ballposition
+        function resetBall() {
+            const ball = document.getElementById('ball');
+            ball.setAttribute('position', `${(Math.random() - 0.5)} 1 ${(Math.random() - 0.5)}`);
+            // Optional: Zufällige neue Position in x und z
+        }
+
+        // Physik-Setup für den Ball
         AFRAME.registerComponent('falling-ball', {
             schema: {
-                velocity: { type: 'vec3', default: {x: 0, y: -0.01, z: 0} }
+                velocity: { type: 'vec3', default: {x: 0, y: -0.02, z: 0} }
             },
             tick: function (time, timeDelta) {
+                if (gameOver) return;
+
                 let velocity = this.data.velocity;
                 let position = this.el.getAttribute('position');
 
-                // Einfache Schwerkraft
-                velocity.y -= 0.0001 * timeDelta;
-
-                // Aktualisieren der Position
+                // Aktualisieren der Position basierend auf der Geschwindigkeit
                 position.x += velocity.x * timeDelta / 1000;
                 position.y += velocity.y * timeDelta / 1000;
                 position.z += velocity.z * timeDelta / 1000;
 
-                // Bodenprüfung (y = 0)
-                if (position.y < 0.1) { // y=0.1 als Bodenhöhe anpassen
-                    position.y = 0.1;
-                    velocity.y = 0;
-                }
+                // Begrenzung der Bewegung (optional)
+                // Zum Beispiel: Ball bleibt innerhalb eines bestimmten Bereichs
 
-                this.data.velocity = velocity;
+                // Aktualisieren der Position
                 this.el.setAttribute('position', position);
             }
         });
@@ -133,6 +178,11 @@
         document.addEventListener('DOMContentLoaded', () => {
             const ball = document.getElementById('ball');
             ball.setAttribute('falling-ball', '');
+        });
+
+        // Laden des Handpose-Modells nach dem Laden der Seite
+        window.addEventListener('load', () => {
+            loadHandposeModel();
         });
     </script>
 </body>
