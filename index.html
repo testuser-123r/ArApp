@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <title>Interaktives AR-Ball Beispiel</title>
+  <!-- A-Frame Bibliothek -->
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.min.js"></script>
+  <!-- AR.js für A-Frame -->
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.js"></script>
   <style>
     body, html {
       margin: 0;
@@ -12,8 +14,7 @@
       overflow: hidden;
       height: 100%;
       width: 100%;
-      /* Entfernt den schwarzen Hintergrund */
-      background-color: transparent;
+      background-color: #000; /* Schwarz als Hintergrund, um den Kamerastream besser sichtbar zu machen */
     }
     #score {
       position: absolute;
@@ -26,25 +27,37 @@
       font-family: Arial, sans-serif;
       z-index: 1;
     }
+    #info {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      background: rgba(0,0,0,0.5);
+      padding: 10px;
+      border-radius: 5px;
+      font-family: Arial, sans-serif;
+      z-index: 1;
+    }
   </style>
 </head>
 <body>
-  <!-- Anzeige für den Punktestand -->
+  <!-- Punktestand Anzeige -->
   <div id="score">Punkte: 0</div>
 
+  <!-- AR-Szene -->
   <a-scene 
     embedded 
-    arjs="sourceType: webcam; debugUIEnabled: false;" 
-    renderer="logarithmicDepthBuffer: true;"
-    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+    arjs="sourceType: webcam; debugUIEnabled: true;" 
+    renderer="logarithmicDepthBuffer: true; colorManagement: true;"
   >
-    <!-- Lichtquelle -->
+    <!-- Lichtquellen -->
     <a-entity light="type: ambient; color: #FFFFFF"></a-entity>
     <a-entity light="type: directional; color: #FFFFFF; intensity: 0.5" position="0 1 1"></a-entity>
 
-    <!-- Marker -->
+    <!-- Hiro-Marker -->
     <a-marker preset="hiro" id="marker">
-      <!-- Ball -->
+      <!-- Interaktiver Ball -->
       <a-sphere 
         id="ball" 
         position="0 0.5 0" 
@@ -59,17 +72,17 @@
     <a-entity camera></a-entity>
   </a-scene>
 
-  <!-- Hinweis für den Benutzer -->
-  <div style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); color: white; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; font-family: Arial, sans-serif; z-index: 1;">
-    📷 Richte deine Kamera auf einen Hiro-Marker und klicke/tippe auf den Ball, um ihn wegzuschlagen!
+  <!-- Benutzerhinweise -->
+  <div id="info">
+    📷 Richte deine Kamera auf den Hiro-Marker und klicke/tippe auf den Ball, um ihn wegzuschlagen!
   </div>
 
   <script>
-    // Initialisiere Punktestand
+    // Punktestand initialisieren
     let score = 0;
     const scoreElement = document.getElementById('score');
 
-    // Funktion zum Aktualisieren des Punktestands
+    // Funktion zur Aktualisierung des Punktestands
     function updateScore() {
       score += 1;
       scoreElement.textContent = 'Punkte: ' + score;
@@ -82,7 +95,6 @@
 
       if (existingBall) {
         // Entferne den bestehenden Ball
-        existingBall.setAttribute('visible', 'false');
         existingBall.parentNode.removeChild(existingBall);
       }
 
@@ -95,11 +107,9 @@
       newBall.setAttribute('animation__rotate', 'property: rotation; to: 0 360 0; loop: true; dur: 2000; easing: linear');
       newBall.setAttribute('class', 'clickable');
 
-      // Füge einen Event-Listener für Klicks/Taps hinzu
+      // Event Listener für Klicks/Taps hinzufügen
       newBall.addEventListener('click', () => {
-        // Aktualisiere den Punktestand
         updateScore();
-        // Erzeuge einen neuen Ball
         spawnBall();
       });
 
@@ -107,17 +117,18 @@
       marker.appendChild(newBall);
     }
 
-    // Warte, bis das A-Frame geladen ist
+    // Warte, bis das DOM geladen ist
     document.addEventListener('DOMContentLoaded', () => {
-      // Füge einen Event-Listener hinzu, der ausgelöst wird, wenn der Marker erkannt wird
       const marker = document.getElementById('marker');
+
+      // Event Listener für Marker-Erkennung hinzufügen
       marker.addEventListener('markerFound', () => {
-        // Spawne den ersten Ball
+        console.log('Marker gefunden');
         spawnBall();
       });
 
       marker.addEventListener('markerLost', () => {
-        // Entferne den Ball, wenn der Marker nicht mehr sichtbar ist
+        console.log('Marker verloren');
         const existingBall = document.getElementById('ball');
         if (existingBall) {
           existingBall.parentNode.removeChild(existingBall);
@@ -127,7 +138,6 @@
   </script>
 </body>
 </html>
-
 
 
 
