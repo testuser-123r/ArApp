@@ -2,25 +2,22 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>AR Ball Schlag App</title>
-    <!-- A-Frame Bibliothek -->
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <!-- AR.js für A-Frame -->
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.js"></script>
-    <!-- TensorFlow.js und Handpose Modell -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.20.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose@0.0.7/dist/handpose.min.js"></script>
-    <!-- Drei.js für zusätzliche 3D-Funktionen -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <title>AR Ball Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- A-Frame Library -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <!-- AR.js für AR-Unterstützung -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
     <style>
-        body, html { margin: 0; padding: 0; overflow: hidden; height: 100%; width: 100%; }
+        body { margin: 0; overflow: hidden; }
         #score {
             position: absolute;
             top: 10px;
-            left: 10px;
-            color: white;
+            left: 50%;
+            transform: translateX(-50%);
             font-size: 24px;
-            z-index: 2;
+            color: white;
+            z-index: 1;
             font-family: Arial, sans-serif;
         }
         #gameOver {
@@ -28,171 +25,108 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            font-size: 36px;
             color: red;
-            font-size: 48px;
-            z-index: 2;
             display: none;
+            z-index: 1;
             font-family: Arial, sans-serif;
-        }
-        /* Verstecke das Standard-Loading-Screen von A-Frame */
-        .loading {
-            display: none !important;
         }
     </style>
 </head>
 <body>
-    <!-- Anzeige der Punktzahl -->
     <div id="score">Punkte: 0</div>
-    <!-- Anzeige für Spielende -->
-    <div id="gameOver">Spiel beendet!</div>
+    <div id="gameOver">Spiel Vorbei!</div>
 
-    <a-scene 
-        arjs='sourceType: webcam;' 
-        vr-mode-ui="enabled: false" 
-        renderer="logarithmicDepthBuffer: true; antialias: true;" 
-        embedded
-        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
-        onloaded="console.log('A-Frame Szene geladen');"
-    >
-        <!-- Marker -->
-        <a-marker preset="hiro">
-            <!-- Fallender Ball -->
-            <a-sphere id="ball" position="0 1 0" radius="0.1" color="red" class="interactive"></a-sphere>
-        </a-marker>
+    <a-scene embedded arjs>
         <!-- Kamera -->
-        <a-entity camera></a-entity>
+        <a-camera-static></a-camera-static>
+
+        <!-- Lichtquelle -->
+        <a-entity light="type: ambient; color: #FFFFFF"></a-entity>
+
+        <!-- Bereich, in dem die Bälle spawnen -->
+        <a-entity id="spawnArea" position="0 1 0"></a-entity>
     </a-scene>
 
     <script>
-        // Initialisierung von Variablen
-        let model;
+        // Initialisierung der Variablen
         let score = 0;
-        let gameOver = false;
         const scoreElement = document.getElementById('score');
         const gameOverElement = document.getElementById('gameOver');
+        const scene = document.querySelector('a-scene');
+        const spawnArea = document.getElementById('spawnArea');
+        const balls = [];
+        let gameOver = false;
 
-        // Funktion zum Aktualisieren der Punktzahl
-        function updateScore() {
-            score += 1;
-            scoreElement.innerText = `Punkte: ${score}`;
+        // Einstellungen
+        const spawnInterval = 2000; // in Millisekunden
+        const ballFallSpeed = 0.02; // Geschwindigkeit, mit der die Bälle fallen
+        const spawnRange = 1; // Bereich, in dem die Bälle gespawnt werden
+
+        // Funktion zum Spawnen von Bällen
+        function spawnBall() {
+            if (gameOver) return;
+
+            const ball = document.createElement('a-sphere');
+            ball.setAttribute('position', {
+                x: (Math.random() - 0.5) * 2 * spawnRange,
+                y: 1, // Start über dem Benutzer
+                z: (Math.random() - 0.5) * 2 * spawnRange
+            });
+            ball.setAttribute('radius', 0.05);
+            ball.setAttribute('color', '#FF0000');
+            ball.setAttribute('class', 'ball');
+
+            // Event Listener für das Treffen des Balls
+            ball.addEventListener('click', () => {
+                if (gameOver) return;
+                scene.removeChild(ball);
+                const index = balls.indexOf(ball);
+                if (index > -1) {
+                    balls.splice(index, 1);
+                }
+                score += 1;
+                scoreElement.innerText = `Punkte: ${score}`;
+            });
+
+            scene.appendChild(ball);
+            balls.push(ball);
+        }
+
+        // Intervall zum regelmäßigen Spawnen von Bällen
+        const ballSpawner = setInterval(spawnBall, spawnInterval);
+
+        // Funktion zum Aktualisieren der Position der Bälle
+        function updateBalls() {
+            if (gameOver) return;
+
+            for (let i = balls.length - 1; i >= 0; i--) {
+                const ball = balls[i];
+                const pos = ball.getAttribute('position');
+                pos.y -= ballFallSpeed;
+                ball.setAttribute('position', pos);
+
+                // Überprüfen, ob der Ball den Boden erreicht hat
+                if (pos.y < 0) {
+                    endGame();
+                    break;
+                }
+            }
+            requestAnimationFrame(updateBalls);
         }
 
         // Funktion zum Beenden des Spiels
         function endGame() {
             gameOver = true;
+            clearInterval(ballSpawner);
             gameOverElement.style.display = 'block';
+            // Entfernen aller verbleibenden Bälle
+            balls.forEach(ball => scene.removeChild(ball));
+            balls.length = 0;
         }
 
-        // Laden des Handpose-Modells
-        async function loadHandposeModel() {
-            model = await handpose.load();
-            console.log("Handpose Modell geladen");
-            detectHands();
-        }
-
-        // Funktion zur Handerkennung
-        async function detectHands() {
-            const scene = document.querySelector('a-scene');
-            const camera = document.querySelector('[camera]').getObject3D('camera');
-            const ball = document.getElementById('ball');
-
-            // Zugriff auf das Video-Element von AR.js
-            const video = document.querySelector('video');
-            if (!video) {
-                console.error("Kein Video-Element gefunden.");
-                return;
-            }
-
-            // Sicherstellen, dass das Video-Element bereit ist
-            video.onloadeddata = () => {
-                console.log("Video geladen, starte Handerkennung");
-                frameLandmarks();
-            };
-
-            async function frameLandmarks() {
-                if (gameOver) return;
-
-                // Handpose schätzt die Hände im Video-Frame
-                const predictions = await model.estimateHands(video, true);
-
-                if (predictions.length > 0) {
-                    const hand = predictions[0];
-                    const indexFinger = hand.landmarks[8]; // Spitze des Zeigefingers
-
-                    // Transformation der Handposition in A-Frame Koordinaten
-                    const normalizedX = (indexFinger[0] / video.videoWidth) * 2 - 1;
-                    const normalizedY = -(indexFinger[1] / video.videoHeight) * 2 + 1;
-                    const vector = new THREE.Vector3(normalizedX, normalizedY, 0.5);
-                    vector.unproject(camera);
-
-                    const dir = vector.sub(camera.position).normalize();
-                    const distance = -camera.position.z / dir.z;
-                    const pos = camera.position.clone().add(dir.multiplyScalar(distance));
-
-                    // Prüfen, ob die Hand den Ball berührt
-                    const ballPos = new THREE.Vector3();
-                    ball.object3D.getWorldPosition(ballPos);
-
-                    const distanceToBall = pos.distanceTo(ballPos);
-                    // Schwellenwert anpassen je nach Größe des Balls und Handerkennung
-                    if (distanceToBall < 0.2) {
-                        console.log("Ball getroffen!");
-                        updateScore();
-                        // Ball neu positionieren
-                        resetBall();
-                    }
-                }
-
-                // Prüfen, ob der Ball den Boden erreicht hat
-                const ballPosY = ball.getAttribute('position').y;
-                if (ballPosY < -0.5) { // y-Wert anpassen je nach Szene
-                    endGame();
-                }
-
-                requestAnimationFrame(frameLandmarks);
-            }
-        }
-
-        // Funktion zum Zurücksetzen der Ballposition
-        function resetBall() {
-            const ball = document.getElementById('ball');
-            // Zufällige Position in x und z innerhalb eines Bereichs
-            const newX = (Math.random() - 0.5) * 2; // Bereich: -1 bis 1
-            const newZ = (Math.random() - 0.5) * 2; // Bereich: -1 bis 1
-            ball.setAttribute('position', `${newX} 1 ${newZ}`);
-        }
-
-        // Physik-Setup für den Ball
-        AFRAME.registerComponent('falling-ball', {
-            schema: {
-                velocity: { type: 'vec3', default: {x: 0, y: -0.02, z: 0} }
-            },
-            tick: function (time, timeDelta) {
-                if (gameOver) return;
-
-                let velocity = this.data.velocity;
-                let position = this.el.getAttribute('position');
-
-                // Aktualisieren der Position basierend auf der Geschwindigkeit
-                position.x += velocity.x * timeDelta / 1000;
-                position.y += velocity.y * timeDelta / 1000;
-                position.z += velocity.z * timeDelta / 1000;
-
-                // Aktualisieren der Position
-                this.el.setAttribute('position', position);
-            }
-        });
-
-        // Ball-Komponente hinzufügen
-        document.addEventListener('DOMContentLoaded', () => {
-            const ball = document.getElementById('ball');
-            ball.setAttribute('falling-ball', '');
-        });
-
-        // Laden des Handpose-Modells nach dem Laden der Seite
-        window.addEventListener('load', () => {
-            loadHandposeModel();
-        });
+        // Start der Ball-Update-Schleife
+        updateBalls();
     </script>
 </body>
 </html>
