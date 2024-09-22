@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- A-Frame Library -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <!-- A-Frame Extras für zusätzliche Features -->
-    <script src="https://unpkg.com/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+    <!-- A-Frame Extras für Hit-Test Unterstützung -->
+    <script src="https://unpkg.com/aframe-xr-hit-test-component@1.3.0/dist/aframe-xr-hit-test-component.min.js"></script>
     <style>
         body { margin: 0; overflow: hidden; }
         #score {
@@ -62,7 +62,12 @@
     <div id="gameOver">Spiel Vorbei!</div>
     <button id="startButton">Starte AR</button>
 
-    <a-scene embedded arjs='sourceType: webcam;' vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+    <a-scene
+        embedded
+        vr-mode-ui="enabled: false"
+        xrweb="optionalFeatures: hit-test;"
+        renderer="colorManagement: true; antialias: true"
+    >
         <!-- Kamera -->
         <a-entity camera></a-entity>
 
@@ -90,17 +95,13 @@
         // Einstellungen
         const spawnInterval = 2000; // in Millisekunden
         const fallDuration = 3000; // in Millisekunden (3 Sekunden zum Fallen)
-        const spawnHeight = 1; // Start y-Position
-        const spawnRange = 0.5; // Bereich für x und z
 
         // Funktion zum Spawnen von Bällen
-        function spawnBall() {
+        function spawnBall(position) {
             if (gameOver) return;
 
             const ball = document.createElement('a-sphere');
-            const x = (Math.random() - 0.5) * 2 * spawnRange;
-            const z = (Math.random() - 0.5) * 2 * spawnRange;
-            ball.setAttribute('position', `${x} ${spawnHeight} ${z}`);
+            ball.setAttribute('position', position);
             ball.setAttribute('radius', 0.05);
             ball.setAttribute('color', '#FF0000');
             ball.setAttribute('class', 'ball');
@@ -124,9 +125,11 @@
             ball.setAttribute('data-start-time', Date.now());
         }
 
-        // Ball-Spawning Interval starten
+        // Funktion zum Starten des Spawning-Intervalls
         function startSpawning() {
-            ballSpawner = setInterval(spawnBall, spawnInterval);
+            ballSpawner = setInterval(() => {
+                // Kein explizites Hit-Test, da Objekte durch Hit-Test-Platzierung erstellt werden
+            }, spawnInterval);
         }
 
         // Update-Funktion zum Aktualisieren der Position der Bälle
@@ -142,7 +145,8 @@
                 const elapsed = currentTime - startTime;
 
                 // Berechne die neue y-Position basierend auf der verstrichenen Zeit
-                const newY = spawnHeight - (spawnHeight * (elapsed / fallDuration));
+                const newY = pos.y - (1 * (elapsed / fallDuration)); // Geschwindigkeit anpassen
+
                 ball.setAttribute('position', `${pos.x} ${newY} ${pos.z}`);
 
                 // Überprüfen, ob der Ball den Boden erreicht hat
@@ -172,24 +176,36 @@
         }
 
         // Event Listener für den Start-Button
-        startButton.addEventListener('click', startGame);
-
-        // Initiale Szene verstecken, bis der Start-Button gedrückt wird
-        scene.style.display = 'none';
-
-        // Optional: Reset des Spiels bei erneuter AR-Erkennung
-        scene.addEventListener('renderstart', () => {
-            if (gameOver) {
-                gameOver = false;
-                score = 0;
-                scoreElement.innerText = `Punkte: ${score}`;
-                gameOverElement.style.display = 'none';
-                balls.length = 0;
-                startSpawning();
-                updateBalls();
+        startButton.addEventListener('click', () => {
+            // Prüfen, ob WebXR unterstützt wird
+            if (navigator.xr) {
+                navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+                    if (supported) {
+                        startGame();
+                    } else {
+                        alert('AR wird auf deinem Gerät nicht unterstützt.');
+                    }
+                });
+            } else {
+                alert('WebXR wird von deinem Browser nicht unterstützt.');
             }
         });
+
+        // Hit-Test Event Listener
+        scene.addEventListener('hit-test', (event) => {
+            if (gameOver) return;
+
+            const hit = event.detail.hit;
+            if (hit) {
+                const position = hit.pose.transform.position;
+                spawnBall(`${position.x} ${position.y} ${position.z}`);
+            }
+        });
+
+        // Sicherstellen, dass die Szene erst sichtbar ist, wenn AR gestartet wird
+        scene.style.display = 'none';
     </script>
 </body>
 </html>
+
 
