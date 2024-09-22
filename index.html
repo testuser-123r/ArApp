@@ -2,12 +2,12 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>AR Ball Game</title>
+    <title>Markerloses AR Ball Game</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- A-Frame Library -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <!-- AR.js für AR-Unterstützung -->
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+    <!-- A-Frame Extras für AR-Integration -->
+    <script src="https://unpkg.com/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
     <style>
         body { margin: 0; overflow: hidden; }
         #score {
@@ -19,6 +19,9 @@
             color: white;
             z-index: 1;
             font-family: Arial, sans-serif;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 10px;
         }
         #gameOver {
             position: absolute;
@@ -30,6 +33,9 @@
             display: none;
             z-index: 1;
             font-family: Arial, sans-serif;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px 40px;
+            border-radius: 15px;
         }
     </style>
 </head>
@@ -37,15 +43,16 @@
     <div id="score">Punkte: 0</div>
     <div id="gameOver">Spiel Vorbei!</div>
 
-    <a-scene embedded arjs>
-        <!-- Marker Definition -->
-        <a-marker preset="hiro">
-            <!-- Bereich, in dem die Bälle spawnen -->
-            <a-entity id="spawnArea" position="0 0 0"></a-entity>
-        </a-marker>
-
+    <a-scene embedded arjs='sourceType: webcam;'>
         <!-- Kamera -->
         <a-entity camera></a-entity>
+
+        <!-- Lichtquellen -->
+        <a-entity light="type: ambient; color: #FFFFFF"></a-entity>
+        <a-entity light="type: directional; color: #FFFFFF; intensity: 0.5" position="1 1 1"></a-entity>
+
+        <!-- Bereich, in dem die Bälle spawnen -->
+        <a-entity id="spawnArea" position="0 0 0"></a-entity>
     </a-scene>
 
     <script>
@@ -60,23 +67,22 @@
 
         // Einstellungen
         const spawnInterval = 2000; // in Millisekunden
-        const ballFallSpeed = 0.02; // Geschwindigkeit, mit der die Bälle fallen
-        const spawnRange = 0.5; // Bereich, in dem die Bälle gespawnt werden
+        const fallDuration = 3000; // in Millisekunden (3 Sekunden zum Fallen)
+        const spawnHeight = 1; // Start y-Position
+        const spawnRange = 0.5; // Bereich für x und z
 
         // Funktion zum Spawnen von Bällen
         function spawnBall() {
             if (gameOver) return;
 
             const ball = document.createElement('a-sphere');
-            // Position relativ zum Marker
-            ball.setAttribute('position', {
-                x: (Math.random() - 0.5) * 2 * spawnRange,
-                y: 0.5, // Start über dem Marker
-                z: (Math.random() - 0.5) * 2 * spawnRange
-            });
+            const x = (Math.random() - 0.5) * 2 * spawnRange;
+            const z = (Math.random() - 0.5) * 2 * spawnRange;
+            ball.setAttribute('position', `${x} ${spawnHeight} ${z}`);
             ball.setAttribute('radius', 0.05);
             ball.setAttribute('color', '#FF0000');
             ball.setAttribute('class', 'ball');
+            ball.setAttribute('dynamic-body', 'mass: 1;');
 
             // Event Listener für das Treffen des Balls
             ball.addEventListener('click', () => {
@@ -92,31 +98,41 @@
 
             spawnArea.appendChild(ball);
             balls.push(ball);
+
+            // Set start time
+            ball.setAttribute('data-start-time', Date.now());
         }
 
-        // Intervall zum regelmäßigen Spawnen von Bällen
+        // Ball-Spawning Interval
         const ballSpawner = setInterval(spawnBall, spawnInterval);
 
-        // Funktion zum Aktualisieren der Position der Bälle
+        // Update-Funktion
         function updateBalls() {
             if (gameOver) return;
+
+            const currentTime = Date.now();
 
             for (let i = balls.length - 1; i >= 0; i--) {
                 const ball = balls[i];
                 const pos = ball.getAttribute('position');
-                pos.y -= ballFallSpeed;
-                ball.setAttribute('position', pos);
+                const startTime = ball.getAttribute('data-start-time') || currentTime;
+                const elapsed = currentTime - startTime;
+
+                // Berechne die neue y-Position basierend auf der verstrichenen Zeit
+                const newY = spawnHeight - (spawnHeight * (elapsed / fallDuration));
+                ball.setAttribute('position', `${pos.x} ${newY} ${pos.z}`);
 
                 // Überprüfen, ob der Ball den Boden erreicht hat
-                if (pos.y < -0.5) { // Anpassung auf den Marker-Niederschlagspunkt
+                if (elapsed >= fallDuration) {
                     endGame();
                     break;
                 }
             }
+
             requestAnimationFrame(updateBalls);
         }
 
-        // Funktion zum Beenden des Spiels
+        // End Game Funktion
         function endGame() {
             gameOver = true;
             clearInterval(ballSpawner);
@@ -126,7 +142,7 @@
             balls.length = 0;
         }
 
-        // Start der Ball-Update-Schleife, sobald die Szene geladen ist
+        // Start der Update-Schleife, sobald die Szene geladen ist
         scene.addEventListener('loaded', () => {
             updateBalls();
         });
