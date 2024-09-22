@@ -38,14 +38,14 @@
     <div id="gameOver">Spiel Vorbei!</div>
 
     <a-scene embedded arjs>
+        <!-- Marker Definition -->
+        <a-marker preset="hiro">
+            <!-- Bereich, in dem die Bälle spawnen -->
+            <a-entity id="spawnArea" position="0 0 0"></a-entity>
+        </a-marker>
+
         <!-- Kamera -->
-        <a-camera-static></a-camera-static>
-
-        <!-- Lichtquelle -->
-        <a-entity light="type: ambient; color: #FFFFFF"></a-entity>
-
-        <!-- Bereich, in dem die Bälle spawnen -->
-        <a-entity id="spawnArea" position="0 1 0"></a-entity>
+        <a-entity camera></a-entity>
     </a-scene>
 
     <script>
@@ -61,16 +61,17 @@
         // Einstellungen
         const spawnInterval = 2000; // in Millisekunden
         const ballFallSpeed = 0.02; // Geschwindigkeit, mit der die Bälle fallen
-        const spawnRange = 1; // Bereich, in dem die Bälle gespawnt werden
+        const spawnRange = 0.5; // Bereich, in dem die Bälle gespawnt werden
 
         // Funktion zum Spawnen von Bällen
         function spawnBall() {
             if (gameOver) return;
 
             const ball = document.createElement('a-sphere');
+            // Position relativ zum Marker
             ball.setAttribute('position', {
                 x: (Math.random() - 0.5) * 2 * spawnRange,
-                y: 1, // Start über dem Benutzer
+                y: 0.5, // Start über dem Marker
                 z: (Math.random() - 0.5) * 2 * spawnRange
             });
             ball.setAttribute('radius', 0.05);
@@ -89,7 +90,7 @@
                 scoreElement.innerText = `Punkte: ${score}`;
             });
 
-            scene.appendChild(ball);
+            spawnArea.appendChild(ball);
             balls.push(ball);
         }
 
@@ -107,7 +108,7 @@
                 ball.setAttribute('position', pos);
 
                 // Überprüfen, ob der Ball den Boden erreicht hat
-                if (pos.y < 0) {
+                if (pos.y < -0.5) { // Anpassung auf den Marker-Niederschlagspunkt
                     endGame();
                     break;
                 }
@@ -121,13 +122,14 @@
             clearInterval(ballSpawner);
             gameOverElement.style.display = 'block';
             // Entfernen aller verbleibenden Bälle
-            balls.forEach(ball => scene.removeChild(ball));
+            balls.forEach(ball => spawnArea.removeChild(ball));
             balls.length = 0;
         }
 
-        // Start der Ball-Update-Schleife
-        updateBalls();
+        // Start der Ball-Update-Schleife, sobald die Szene geladen ist
+        scene.addEventListener('loaded', () => {
+            updateBalls();
+        });
     </script>
 </body>
 </html>
-
