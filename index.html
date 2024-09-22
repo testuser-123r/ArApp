@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Markerloses AR Ball Game</title>
+    <title>Markerlose AR Ball Game</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- A-Frame Library -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
@@ -37,13 +37,32 @@
             padding: 20px 40px;
             border-radius: 15px;
         }
+        /* Button Styling */
+        #startButton {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            z-index: 1;
+        }
+        #startButton:hover {
+            background-color: #218838;
+        }
     </style>
 </head>
 <body>
     <div id="score">Punkte: 0</div>
     <div id="gameOver">Spiel Vorbei!</div>
+    <button id="startButton">Starte AR</button>
 
-    <a-scene embedded arjs='sourceType: webcam;'>
+    <a-scene embedded arjs='sourceType: webcam;' vr-mode-ui="enabled: false">
         <!-- Kamera -->
         <a-entity camera></a-entity>
 
@@ -60,10 +79,13 @@
         let score = 0;
         const scoreElement = document.getElementById('score');
         const gameOverElement = document.getElementById('gameOver');
+        const startButton = document.getElementById('startButton');
         const scene = document.querySelector('a-scene');
         const spawnArea = document.getElementById('spawnArea');
         const balls = [];
         let gameOver = false;
+        let ballSpawner;
+        let updateLoop;
 
         // Einstellungen
         const spawnInterval = 2000; // in Millisekunden
@@ -82,7 +104,6 @@
             ball.setAttribute('radius', 0.05);
             ball.setAttribute('color', '#FF0000');
             ball.setAttribute('class', 'ball');
-            ball.setAttribute('dynamic-body', 'mass: 1;');
 
             // Event Listener für das Treffen des Balls
             ball.addEventListener('click', () => {
@@ -104,7 +125,9 @@
         }
 
         // Ball-Spawning Interval
-        const ballSpawner = setInterval(spawnBall, spawnInterval);
+        function startSpawning() {
+            ballSpawner = setInterval(spawnBall, spawnInterval);
+        }
 
         // Update-Funktion
         function updateBalls() {
@@ -129,22 +152,42 @@
                 }
             }
 
-            requestAnimationFrame(updateBalls);
+            updateLoop = requestAnimationFrame(updateBalls);
         }
 
         // End Game Funktion
         function endGame() {
             gameOver = true;
             clearInterval(ballSpawner);
+            cancelAnimationFrame(updateLoop);
             gameOverElement.style.display = 'block';
-            // Entfernen aller verbleibenden Bälle
-            balls.forEach(ball => spawnArea.removeChild(ball));
-            balls.length = 0;
         }
 
-        // Start der Update-Schleife, sobald die Szene geladen ist
-        scene.addEventListener('loaded', () => {
+        // Start Game Funktion
+        function startGame() {
+            startButton.style.display = 'none';
+            scene.style.display = 'block';
+            startSpawning();
             updateBalls();
+        }
+
+        // Event Listener für Start-Button
+        startButton.addEventListener('click', startGame);
+
+        // Initiale Szene verstecken, bis der Start-Button gedrückt wird
+        scene.style.display = 'none';
+
+        // Optional: Reset des Spiels bei erneuter AR-Erkennung
+        scene.addEventListener('renderstart', () => {
+            if (gameOver) {
+                gameOver = false;
+                score = 0;
+                scoreElement.innerText = `Punkte: ${score}`;
+                gameOverElement.style.display = 'none';
+                balls.length = 0;
+                startSpawning();
+                updateBalls();
+            }
         });
     </script>
 </body>
