@@ -52,7 +52,7 @@
         <!-- Marker -->
         <a-marker preset="hiro">
             <!-- Fallender Ball -->
-            <a-sphere id="ball" position="0 1 0" radius="0.1" color="red"></a-sphere>
+            <a-sphere id="ball" position="0 1 0" radius="0.1" color="red" class="interactive"></a-sphere>
         </a-marker>
         <!-- Kamera -->
         <a-entity camera></a-entity>
@@ -98,9 +98,15 @@
                 return;
             }
 
+            // Sicherstellen, dass das Video-Element bereit ist
+            video.onloadeddata = () => {
+                frameLandmarks();
+            };
+
             async function frameLandmarks() {
                 if (gameOver) return;
 
+                // Handpose schätzt die Hände im Video-Frame
                 const predictions = await model.estimateHands(video, true);
 
                 if (predictions.length > 0) {
@@ -139,8 +145,6 @@
 
                 requestAnimationFrame(frameLandmarks);
             }
-
-            frameLandmarks();
         }
 
         // Funktion zum Zurücksetzen der Ballposition
@@ -168,6 +172,9 @@
                 position.y += velocity.y * timeDelta / 1000;
                 position.z += velocity.z * timeDelta / 1000;
 
+                // Begrenzung der Bewegung (optional)
+                // Zum Beispiel: Ball bleibt innerhalb eines bestimmten Bereichs
+
                 // Aktualisieren der Position
                 this.el.setAttribute('position', position);
             }
@@ -186,4 +193,5 @@
     </script>
 </body>
 </html>
+
 
