@@ -47,7 +47,7 @@
         arjs='sourceType: webcam;' 
         vr-mode-ui="enabled: false" 
         renderer="logarithmicDepthBuffer: true; antialias: true;" 
-        fullscreen="true"
+        style="width: 100%; height: 100vh;"
     >
         <!-- Marker -->
         <a-marker preset="hiro">
@@ -146,8 +146,10 @@
         // Funktion zum Zurücksetzen der Ballposition
         function resetBall() {
             const ball = document.getElementById('ball');
-            ball.setAttribute('position', `${(Math.random() - 0.5)} 1 ${(Math.random() - 0.5)}`);
-            // Optional: Zufällige neue Position in x und z
+            // Zufällige Position in x und z innerhalb eines Bereichs
+            const newX = (Math.random() - 0.5) * 2; // Bereich: -1 bis 1
+            const newZ = (Math.random() - 0.5) * 2; // Bereich: -1 bis 1
+            ball.setAttribute('position', `${newX} 1 ${newZ}`);
         }
 
         // Physik-Setup für den Ball
@@ -165,9 +167,6 @@
                 position.x += velocity.x * timeDelta / 1000;
                 position.y += velocity.y * timeDelta / 1000;
                 position.z += velocity.z * timeDelta / 1000;
-
-                // Begrenzung der Bewegung (optional)
-                // Zum Beispiel: Ball bleibt innerhalb eines bestimmten Bereichs
 
                 // Aktualisieren der Position
                 this.el.setAttribute('position', position);
@@ -187,3 +186,4 @@
     </script>
 </body>
 </html>
+
