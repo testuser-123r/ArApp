@@ -16,6 +16,7 @@
             padding: 10px;
             background-color: rgba(0, 0, 0, 0.5);
             border-radius: 5px;
+            z-index: 1; /* Sicherstellen, dass die Anzeige über der AR-Szene liegt */
         }
 
         #score {
@@ -32,9 +33,11 @@
 <body>
     <div id="score">Punkte: 0</div>
     <div id="lives">Leben: 3</div>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.141/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.141/examples/jsm/webxr/ARButton.js"></script>
-    <script>
+    <script type="module">
+        // Importiere Three.js und ARButton als Module
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.141.0/build/three.module.js';
+        import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.141.0/examples/jsm/webxr/ARButton.js';
+
         let camera, scene, renderer;
         let controller;
         let reticle;
@@ -48,8 +51,11 @@
         animate();
 
         function init() {
+            // Szene initialisieren und Hintergrund transparent setzen
             scene = new THREE.Scene();
+            scene.background = null; // WICHTIG für die Anzeige der Kamera als Hintergrund
 
+            // Kamera konfigurieren
             camera = new THREE.PerspectiveCamera(
                 70,
                 window.innerWidth / window.innerHeight,
@@ -57,22 +63,22 @@
                 20
             );
 
-            // Renderer
+            // Renderer konfigurieren
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.xr.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // AR Button
+            // AR Button hinzufügen
             document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
 
-            // Licht hinzufügen
+            // Beleuchtung hinzufügen
             const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
             light.position.set(0.5, 1, 0.25);
             scene.add(light);
 
-            // Reticle für Hit-Testing
+            // Reticle für Hit-Testing erstellen
             const reticleGeometry = new THREE.RingGeometry(0.05, 0.055, 32).rotateX(-Math.PI / 2);
             const reticleMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
             reticle = new THREE.Mesh(reticleGeometry, reticleMaterial);
@@ -80,11 +86,12 @@
             reticle.visible = false;
             scene.add(reticle);
 
-            // Controller
+            // Controller konfigurieren
             controller = renderer.xr.getController(0);
             controller.addEventListener('select', onSelect);
             scene.add(controller);
 
+            // Fenstergrößenänderung überwachen
             window.addEventListener('resize', onWindowResize, false);
         }
 
@@ -105,7 +112,7 @@
             const geometry = new THREE.SphereGeometry(0.05, 16, 16);
             const material = new THREE.MeshPhongMaterial({ color: 0xff0000 });
             const ball = new THREE.Mesh(geometry, material);
-            ball.userData.velocity = new THREE.Vector3(0, -0.01, 0);
+            ball.userData.velocity = new THREE.Vector3(0, -0.02, 0); // Erhöhte Fallgeschwindigkeit
             return ball;
         }
 
@@ -148,12 +155,12 @@
                 }
             }
 
-            // Bälle bewegen
-            balls.forEach((ball) => {
+            // Bälle bewegen und Lebenspunkte verwalten
+            balls.forEach((ball, index) => {
                 ball.position.add(ball.userData.velocity);
                 if (ball.position.y < -1) {
                     scene.remove(ball);
-                    balls.splice(balls.indexOf(ball), 1);
+                    balls.splice(index, 1);
                     lives -= 1;
                     document.getElementById('lives').textContent = `Leben: ${lives}`;
                     if (lives <= 0) {
