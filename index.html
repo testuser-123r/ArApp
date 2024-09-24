@@ -1,145 +1,124 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Falling Ball Game mit Bewegungserkennung</title>
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no"
-    />
-    <!-- A-Frame Bibliothek -->
-    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <!-- AR.js für A-Frame -->
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
-    <!-- Include shake.js Bibliothek -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/shake.js/1.2.2/shake.min.js"></script>
-    <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-      }
-      #scoreboard {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        color: #fff;
-        font-size: 24px;
-        z-index: 1;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="scoreboard">Punkte: 0</div>
-    <a-scene
-      embedded
-      vr-mode-ui="enabled: false"
-      renderer="logarithmicDepthBuffer: true;"
-      arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;"
-    >
-      <!-- Ball -->
-      <a-sphere
-        id="ball"
-        position="0 2 -5"
-        radius="0.3"
-        color="#EF2D5E"
-        shadow
-      ></a-sphere>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>AR Ballspiel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #scoreboard {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: #fff;
+      font-size: 24px;
+      z-index: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="scoreboard">Punkte: 0</div>
+  <!-- Hauptskript -->
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.142.0/build/three.module.js';
+    import { ARButton } from 'https://unpkg.com/three@0.142.0/examples/jsm/webxr/ARButton.js';
 
-      <!-- Boden -->
-      <a-plane
-        position="0 0 -5"
-        rotation="-90 0 0"
-        width="10"
-        height="10"
-        color="#7BC8A4"
-      ></a-plane>
+    let camera, scene, renderer;
+    let ball;
+    let score = 0;
+    let gameOver = false;
 
-      <!-- Lichtquelle -->
-      <a-light type="ambient" color="#888"></a-light>
-      <a-light type="directional" intensity="0.5" position="0 1 0"></a-light>
+    init();
 
-      <!-- Kamera -->
-      <a-entity camera></a-entity>
-    </a-scene>
+    function init() {
+      // Szene erstellen
+      scene = new THREE.Scene();
 
-    <script>
-      let score = 0;
-      let gameOver = false;
-      const ball = document.getElementById('ball');
-      const scoreboard = document.getElementById('scoreboard');
+      // Kamera erstellen
+      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-      function dropBall() {
-        ball.setAttribute('visible', true);
-        ball.setAttribute('position', '0 2 -5');
-        gameOver = false;
+      // Licht hinzufügen
+      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+      light.position.set(0.5, 1, 0.25);
+      scene.add(light);
 
-        // Entferne vorhandene Animationen
-        ball.removeAttribute('animation');
+      // Ball erstellen
+      const geometry = new THREE.SphereGeometry(0.1, 32, 32);
+      const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+      ball = new THREE.Mesh(geometry, material);
+      scene.add(ball);
 
-        // Füge die Animation hinzu (gerade nach unten)
-        ball.setAttribute('animation', {
-          property: 'position',
-          to: '0 -1 -5',
-          dur: 3000,
-          easing: 'linear'
-        });
-      }
+      // Startposition des Balls
+      resetBall();
 
-      ball.addEventListener('animationcomplete', function () {
-        if (!gameOver) {
-          alert('Game Over!');
-          gameOver = true;
-          score = 0;
-          scoreboard.innerText = 'Punkte: ' + score;
-          setTimeout(dropBall, 1000);
-        }
-      });
+      // Renderer erstellen
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      document.body.appendChild(renderer.domElement);
 
-      // Bewegungserkennung einrichten
-      function initShakeEvent() {
-        const shakeEvent = new Shake({ threshold: 15 });
-        shakeEvent.start();
+      // ARButton hinzufügen
+      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
 
-        window.addEventListener('shake', () => {
-          if (!gameOver) {
-            score += 1;
-            scoreboard.innerText = 'Punkte: ' + score;
-            gameOver = true;
-            // Stoppe die aktuelle Animation
-            ball.removeAttribute('animation');
-            // Verstecke den Ball
-            ball.setAttribute('visible', false);
-            setTimeout(dropBall, 500);
-          }
-        }, false);
+      // Event Listener
+      window.addEventListener('resize', onWindowResize, false);
+
+      // Starten der Animation
+      animate();
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function resetBall() {
+      ball.position.set(0, 1.5, -0.5);
+      gameOver = false;
+    }
+
+    function animate() {
+      renderer.setAnimationLoop(render);
+    }
+
+    function render(timestamp, frame) {
+      if (ball.position.y > -1 && !gameOver) {
+        // Ball fällt gleichmäßig
+        ball.position.y -= 0.01;
+      } else if (!gameOver) {
+        // Game Over
+        alert('Game Over!');
+        score = 0;
+        document.getElementById('scoreboard').innerText = 'Punkte: ' + score;
+        resetBall();
       }
 
-      // Bewegungserlaubnis anfordern (für iOS)
-      function requestMotionPermission() {
-        if (
-          typeof DeviceMotionEvent !== 'undefined' &&
-          typeof DeviceMotionEvent.requestPermission === 'function'
-        ) {
-          DeviceMotionEvent.requestPermission()
-            .then((response) => {
-              if (response == 'granted') {
-                initShakeEvent();
-              } else {
-                alert('Bewegungserkennung wurde nicht erlaubt.');
-              }
-            })
-            .catch(console.error);
-        } else {
-          // Bewegungserkennung initialisieren
-          initShakeEvent();
-        }
-      }
+      // Überprüfen, ob der Ball nahe genug an der Kamera ist
+      checkCollisionWithCamera();
 
-      // Spiel starten
-      window.addEventListener('load', () => {
-        dropBall();
-        requestMotionPermission();
-      });
-    </script>
-  </body>
+      renderer.render(scene, camera);
+    }
+
+    function checkCollisionWithCamera() {
+      const cameraPosition = new THREE.Vector3();
+      camera.getWorldPosition(cameraPosition);
+
+      const ballPosition = new THREE.Vector3();
+      ball.getWorldPosition(ballPosition);
+
+      const distance = cameraPosition.distanceTo(ballPosition);
+
+      if (distance < 0.3 && !gameOver) {
+        // Ball wurde "geschlagen"
+        score += 1;
+        document.getElementById('scoreboard').innerText = 'Punkte: ' + score;
+        gameOver = true;
+        setTimeout(resetBall, 500);
+      }
+    }
+  </script>
+</body>
 </html>
