@@ -2,14 +2,14 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Falling Ball Game</title>
+    <title>Falling Ball Game Optimized</title>
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no"
     />
-    <!-- A-Frame Bibliothek -->
+    <!-- A-Frame Library -->
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <!-- AR.js für A-Frame -->
+    <!-- AR.js for A-Frame -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
     <style>
       body {
@@ -37,12 +37,12 @@
       <a-sphere
         id="ball"
         position="0 2 -5"
-        radius="0.5"
+        radius="0.3"
         color="#EF2D5E"
         shadow
       ></a-sphere>
 
-      <!-- Lichtquelle -->
+      <!-- Light Sources -->
       <a-light type="ambient" color="#888"></a-light>
       <a-light
         type="directional"
@@ -50,7 +50,7 @@
         position="0 1 0"
       ></a-light>
 
-      <!-- Kamera -->
+      <!-- Camera -->
       <a-camera-static></a-camera-static>
     </a-scene>
 
@@ -59,10 +59,14 @@
       let gameOver = false;
       const ball = document.getElementById('ball');
       const scoreboard = document.getElementById('scoreboard');
+      const camera = document.querySelector('a-camera-static');
 
       function dropBall() {
-        ball.setAttribute('position', '0 2 -5');
-        ball.object3D.position.y = 2;
+        // Randomly choose left (-1), center (0), or right (1)
+        const randomX = (Math.random() * 2 - 1).toFixed(2);
+        ball.setAttribute('position', `${randomX} 2 -5`);
+        ball.object3D.position.set(randomX, 2, -5);
+        ball.setAttribute('visible', 'true');
         gameOver = false;
         animateBall();
       }
@@ -70,34 +74,60 @@
       function animateBall() {
         const fallSpeed = 0.02;
         function fall() {
-          if (ball.object3D.position.y > -1 && !gameOver) {
+          if (!gameOver) {
             ball.object3D.position.y -= fallSpeed;
-            requestAnimationFrame(fall);
-          } else if (!gameOver) {
-            alert('Game Over!');
-            gameOver = true;
-            score = 0;
-            scoreboard.innerText = 'Punkte: ' + score;
-            setTimeout(dropBall, 1000);
+
+            // Calculate distance between ball and camera
+            const ballPos = new THREE.Vector3();
+            ball.object3D.getWorldPosition(ballPos);
+
+            const cameraPos = new THREE.Vector3();
+            camera.object3D.getWorldPosition(cameraPos);
+
+            const distance = ballPos.distanceTo(cameraPos);
+
+            // Check for "collision" when ball is close to camera (simulating hand proximity)
+            if (distance < 1) {
+              handleCollision();
+              return;
+            }
+
+            // Check if ball has fallen below view
+            if (ball.object3D.position.y > -1) {
+              requestAnimationFrame(fall);
+            } else {
+              // Ball missed, game over
+              if (!gameOver) {
+                alert('Game Over!');
+                gameOver = true;
+                score = 0;
+                scoreboard.innerText = 'Punkte: ' + score;
+                setTimeout(dropBall, 1000);
+              }
+            }
           }
         }
         fall();
       }
 
-      ball.addEventListener('click', () => {
+      function handleCollision() {
         if (!gameOver) {
+          ball.setAttribute('visible', 'false');
           score += 1;
           scoreboard.innerText = 'Punkte: ' + score;
           gameOver = true;
           setTimeout(dropBall, 500);
         }
-      });
+      }
 
-      // Spiel starten
+      ball.addEventListener('click', handleCollision);
+
+      // Start the game
       window.addEventListener('load', () => {
         dropBall();
       });
     </script>
   </body>
 </html>
+
 
