@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>AR Ballspiel</title>
+  <title>AR Würfelspiel</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     body { margin: 0; overflow: hidden; }
@@ -24,7 +24,7 @@
     import { ARButton } from 'https://unpkg.com/three@0.142.0/examples/jsm/webxr/ARButton.js';
 
     let camera, scene, renderer;
-    let ball;
+    let cube;
     let score = 0;
     let gameOver = false;
 
@@ -42,14 +42,14 @@
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
 
-      // Ball erstellen
-      const geometry = new THREE.SphereGeometry(0.1, 32, 32);
-      const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-      ball = new THREE.Mesh(geometry, material);
-      scene.add(ball);
+      // Würfel erstellen
+      const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+      const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+      cube = new THREE.Mesh(geometry, material);
+      scene.add(cube);
 
-      // Startposition des Balls
-      resetBall();
+      // Startposition des Würfels
+      resetCube();
 
       // Renderer erstellen
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -64,8 +64,8 @@
       // Event Listener
       window.addEventListener('resize', onWindowResize, false);
 
-      // Klick-Event für die Interaktion
-      renderer.domElement.addEventListener('click', onClick, false);
+      // Touch-Event für die Interaktion
+      renderer.domElement.addEventListener('touchstart', onTouchStart, false);
 
       // Starten der Animation
       animate();
@@ -78,8 +78,8 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    function resetBall() {
-      ball.position.set(0, 1.5, -0.5);
+    function resetCube() {
+      cube.position.set(0, 1.5, -0.5);
       gameOver = false;
     }
 
@@ -88,40 +88,40 @@
     }
 
     function render(timestamp, frame) {
-      if (ball.position.y > -1 && !gameOver) {
-        // Ball fällt gleichmäßig
-        ball.position.y -= 0.01;
+      if (cube.position.y > -1 && !gameOver) {
+        // Würfel fällt gleichmäßig über 2 Sekunden
+        cube.position.y -= 0.01;
       } else if (!gameOver) {
         // Game Over
         alert('Game Over!');
         score = 0;
         document.getElementById('scoreboard').innerText = 'Punkte: ' + score;
-        resetBall();
+        resetCube();
       }
 
       renderer.render(scene, camera);
     }
 
-    function onClick(event) {
+    function onTouchStart(event) {
       if (gameOver) return;
 
-      // Klick-Koordinaten ermitteln
-      const mouse = new THREE.Vector2();
-      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+      // Touch-Koordinaten ermitteln
+      const touch = event.touches[0];
+      const x = (touch.clientX / window.innerWidth) * 2 - 1;
+      const y = -(touch.clientY / window.innerHeight) * 2 + 1;
 
-      // Raycaster für den Klick erstellen
+      // Raycaster für die Berührung erstellen
       const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(mouse, camera);
+      raycaster.setFromCamera({ x: x, y: y }, camera);
 
-      // Prüfen, ob der Ball angeklickt wurde
-      const intersects = raycaster.intersectObject(ball);
+      // Prüfen, ob der Würfel berührt wurde
+      const intersects = raycaster.intersectObject(cube);
 
       if (intersects.length > 0) {
         score += 1;
         document.getElementById('scoreboard').innerText = 'Punkte: ' + score;
         gameOver = true;
-        setTimeout(resetBall, 500);
+        setTimeout(resetCube, 500);
       }
     }
   </script>
