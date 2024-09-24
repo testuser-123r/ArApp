@@ -2,12 +2,12 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>AR Ballspiel mit Hand-Tracking</title>
+  <title>AR Würfelspiel</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <!-- Three.js Bibliothek -->
   <script src="https://unpkg.com/three@0.142.0/build/three.min.js"></script>
-  <!-- WebXR Hand Tracking Bibliothek -->
-  <script src="https://unpkg.com/three@0.142.0/examples/jsm/webxr/HandSpace.js"></script>
+  <!-- ARButton für WebXR -->
+  <script src="https://unpkg.com/three@0.142.0/examples/jsm/webxr/ARButton.js"></script>
   <style>
     body { margin: 0; overflow: hidden; }
     #scoreboard {
@@ -18,31 +18,13 @@
       font-size: 24px;
       z-index: 1;
     }
-    #ar-button {
-      position: absolute;
-      bottom: 20px;
-      left: calc(50% - 50px);
-      width: 100px;
-      height: 40px;
-      background-color: #0066ff;
-      color: white;
-      text-align: center;
-      line-height: 40px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
   </style>
 </head>
 <body>
   <div id="scoreboard">Punkte: 0</div>
-  <div id="ar-button">Start AR</div>
-  <script type="module">
-    import * as THREE from 'https://unpkg.com/three@0.142.0/build/three.module.js';
-    import { XRHandModelFactory } from 'https://unpkg.com/three@0.142.0/examples/jsm/webxr/XRHandModelFactory.js';
-
+  <script>
     let camera, scene, renderer;
-    let controller;
-    let ball;
+    let cube;
     let score = 0;
     let gameOver = false;
 
@@ -60,14 +42,14 @@
       light.position.set(0.5, 1, 0.25);
       scene.add(light);
 
-      // Ball erstellen
-      const geometry = new THREE.SphereGeometry(0.1, 32, 32);
-      const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-      ball = new THREE.Mesh(geometry, material);
-      scene.add(ball);
+      // Würfel erstellen
+      const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+      const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+      cube = new THREE.Mesh(geometry, material);
+      scene.add(cube);
 
-      // Startposition des Balls
-      resetBall();
+      // Startposition des Würfels
+      resetCube();
 
       // Renderer erstellen
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -77,55 +59,13 @@
       document.body.appendChild(renderer.domElement);
 
       // ARButton hinzufügen
-      const arButton = document.getElementById('ar-button');
-      arButton.addEventListener('click', activateAR);
+      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
 
       // Event Listener
       window.addEventListener('resize', onWindowResize, false);
-    }
 
-    function activateAR() {
-      navigator.xr.isSessionSupported('immersive-ar').then(function (supported) {
-        if (supported) {
-          renderer.xr.setSessionInit({
-            requiredFeatures: ['hit-test', 'hand-tracking']
-          });
-          renderer.xr.setReferenceSpaceType('local');
-
-          renderer.xr.getSession().then(function (session) {
-            session.requestReferenceSpace('local').then(function (refSpace) {
-              renderer.xr.setReferenceSpace(refSpace);
-            });
-          });
-
-          document.getElementById('ar-button').style.display = 'none';
-          renderer.xr.setAnimationLoop(render);
-          document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test', 'hand-tracking'] }));
-
-          // Hand-Tracking initialisieren
-          initHandTracking();
-        } else {
-          alert('AR wird auf diesem Gerät nicht unterstützt.');
-        }
-      });
-    }
-
-    function initHandTracking() {
-      const handModelFactory = new XRHandModelFactory();
-
-      // Linke Hand
-      const leftHand = renderer.xr.getHand(0);
-      scene.add(leftHand);
-
-      const leftHandModel = handModelFactory.createHandModel(leftHand, 'mesh');
-      leftHand.add(leftHandModel);
-
-      // Rechte Hand
-      const rightHand = renderer.xr.getHand(1);
-      scene.add(rightHand);
-
-      const rightHandModel = handModelFactory.createHandModel(rightHand, 'mesh');
-      rightHand.add(rightHandModel);
+      // Touch-Event für die Interaktion
+      renderer.domElement.addEventListener('touchstart', onTouchStart, false);
     }
 
     function onWindowResize() {
@@ -135,57 +75,56 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    function resetBall() {
-      ball.position.set(0, 1.5, -0.5);
+    function resetCube() {
+      cube.position.set(0, 1.5, -0.5);
       gameOver = false;
     }
 
+    function animate() {
+      renderer.setAnimationLoop(render);
+    }
+
     function render(timestamp, frame) {
-      if (ball.position.y > -1 && !gameOver) {
-        // Ball fällt gleichmäßig über 2 Sekunden
-        ball.position.y -= 0.01;
+      if (cube.position.y > -1 && !gameOver) {
+        // Würfel fällt gleichmäßig über 2 Sekunden
+        cube.position.y -= 0.01;
       } else if (!gameOver) {
         // Game Over
         alert('Game Over!');
         score = 0;
         document.getElementById('scoreboard').innerText = 'Punkte: ' + score;
-        resetBall();
+        resetCube();
       }
-
-      // Handpositionen überprüfen
-      checkHandInteractions();
 
       renderer.render(scene, camera);
     }
 
-    function checkHandInteractions() {
-      const session = renderer.xr.getSession();
+    function onTouchStart(event) {
+      if (gameOver) return;
 
-      if (session) {
-        for (const inputSource of session.inputSources) {
-          if (inputSource.hand && inputSource.handedness) {
-            const indexFingerTip = inputSource.hand.get('index-finger-tip');
+      // Touch-Koordinaten ermitteln
+      const touch = event.touches[0];
+      const x = (touch.clientX / window.innerWidth) * 2 - 1;
+      const y = -(touch.clientY / window.innerHeight) * 2 + 1;
 
-            if (indexFingerTip) {
-              const position = new THREE.Vector3();
-              const orientation = new THREE.Quaternion();
-              const matrix = new THREE.Matrix4();
+      // Raycaster für die Berührung erstellen
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera({ x: x, y: y }, camera);
 
-              // Holen der Position des Fingers
-              indexFingerTip.matrix.decompose(position, orientation, new THREE.Vector3());
+      // Prüfen, ob der Würfel berührt wurde
+      const intersects = raycaster.intersectObject(cube);
 
-              // Überprüfen, ob der Finger den Ball berührt
-              if (position.distanceTo(ball.position) < 0.1 && !gameOver) {
-                score += 1;
-                document.getElementById('scoreboard').innerText = 'Punkte: ' + score;
-                gameOver = true;
-                setTimeout(resetBall, 500);
-              }
-            }
-          }
-        }
+      if (intersects.length > 0) {
+        score += 1;
+        document.getElementById('scoreboard').innerText = 'Punkte: ' + score;
+        gameOver = true;
+        setTimeout(resetCube, 500);
       }
     }
+
+    // Starten der Animation
+    animate();
   </script>
 </body>
 </html>
+
