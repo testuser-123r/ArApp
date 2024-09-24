@@ -50,8 +50,8 @@
     <!-- Canvas für die Visualisierung der Handerkennung (optional) -->
     <canvas
       id="output_canvas"
-      width="1280"
-      height="720"
+      width="640"
+      height="480"
       style="display: none;"
     ></canvas>
     <a-scene
@@ -96,20 +96,21 @@
       hands.setOptions({
         maxNumHands: 1,
         modelComplexity: 1,
-        minDetectionConfidence: 0.8,
-        minTrackingConfidence: 0.8,
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.7,
       });
 
       hands.onResults(onResults);
 
-      const camera = new Camera(videoElement, {
+      // Kamera initialisieren
+      const mpCamera = new Camera(videoElement, {
         onFrame: async () => {
           await hands.send({ image: videoElement });
         },
-        width: 1280,
-        height: 720,
+        width: 640,
+        height: 480,
       });
-      camera.start();
+      mpCamera.start();
 
       function onResults(results) {
         if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
@@ -142,17 +143,14 @@
 
         // Hole die Landmarken der ersten erkannten Hand
         const landmarks = results.multiHandLandmarks[0];
-
-        // Koordinaten der Hand berechnen
         const indexFingerTip = landmarks[8]; // Index-Finger-Spitze
 
-        // Umrechnung der Koordinaten
-        const handX = (indexFingerTip.x - 0.5) * 10; // Skalierung anpassen
-        const handY = -(indexFingerTip.y - 0.5) * 10; // Y-Achse invertieren und skalieren
-        const handZ = (indexFingerTip.z) * 10; // Z-Koordinate (Tiefe)
+        // Bildschirmkoordinaten (0 bis 1) zu AR-Szenen-Koordinaten umrechnen
+        const handX = (indexFingerTip.x - 0.5) * 10; // Skalierungsfaktor anpassen
+        const handY = -(indexFingerTip.y - 0.5) * 10;
+        const handZ = -5 + (indexFingerTip.z * 10); // Z-Koordinate
 
-        // Position der Hand in der AR-Szene
-        const handPosition = new THREE.Vector3(handX, handY, -5 + handZ);
+        const handPosition = new THREE.Vector3(handX, handY, handZ);
 
         // Position des Balls
         const ballPosition = new THREE.Vector3();
@@ -177,10 +175,19 @@
       }
 
       function animateBall() {
-        const fallSpeed = 0.02;
-        function fall() {
-          if (ball.object3D.position.y > -1 && !gameOver) {
-            ball.object3D.position.y -= fallSpeed;
+        const startY = 2;
+        const endY = -1;
+        const duration = 2000; // 2 Sekunden
+        const startTime = performance.now();
+
+        function fall(currentTime) {
+          if (gameOver) return;
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          const newY = startY + (endY - startY) * progress;
+          ball.object3D.position.y = newY;
+
+          if (progress < 1) {
             requestAnimationFrame(fall);
           } else if (!gameOver) {
             alert('Game Over!');
@@ -190,7 +197,7 @@
             setTimeout(dropBall, 1000);
           }
         }
-        fall();
+        requestAnimationFrame(fall);
       }
 
       // Spiel starten
@@ -200,3 +207,4 @@
     </script>
   </body>
 </html>
+
