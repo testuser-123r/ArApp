@@ -4,10 +4,6 @@
   <meta charset="UTF-8">
   <title>AR Würfelspiel</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <!-- Three.js Bibliothek -->
-  <script src="https://unpkg.com/three@0.142.0/build/three.min.js"></script>
-  <!-- ARButton für WebXR -->
-  <script src="https://unpkg.com/three@0.142.0/examples/jsm/webxr/ARButton.js"></script>
   <style>
     body { margin: 0; overflow: hidden; }
     #scoreboard {
@@ -22,7 +18,11 @@
 </head>
 <body>
   <div id="scoreboard">Punkte: 0</div>
-  <script>
+  <!-- Hauptskript -->
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.142.0/build/three.module.js';
+    import { ARButton } from 'https://unpkg.com/three@0.142.0/examples/jsm/webxr/ARButton.js';
+
     let camera, scene, renderer;
     let cube;
     let score = 0;
@@ -66,6 +66,9 @@
 
       // Touch-Event für die Interaktion
       renderer.domElement.addEventListener('touchstart', onTouchStart, false);
+
+      // Starten der Animation
+      animate();
     }
 
     function onWindowResize() {
@@ -121,10 +124,9 @@
         setTimeout(resetCube, 500);
       }
     }
-
-    // Starten der Animation
-    animate();
   </script>
 </body>
+</html>
+
 </html>
 
