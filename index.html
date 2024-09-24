@@ -1,210 +1,181 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Falling Ball Game mit Handerkennung</title>
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no"
-    />
-    <!-- A-Frame Bibliothek -->
-    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <!-- AR.js für A-Frame -->
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>AR Ballspiel mit Handerkennung</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <!-- Three.js Bibliothek -->
+  <script src="https://unpkg.com/three@0.142.0/build/three.min.js"></script>
+  <!-- ARButton für WebXR -->
+  <script type="module">
+    import { ARButton } from 'https://unpkg.com/three@0.142.0/examples/jsm/webxr/ARButton.js';
+  </script>
+  <!-- MediaPipe Hands -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #scoreboard {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: #fff;
+      font-size: 24px;
+      z-index: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="scoreboard">Punkte: 0</div>
+  <!-- Hauptskript -->
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.142.0/build/three.module.js';
+    import { ARButton } from 'https://unpkg.com/three@0.142.0/examples/jsm/webxr/ARButton.js';
 
-    <!-- TensorFlow.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@3.11.0/dist/tf-core.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@3.11.0/dist/tf-backend-webgl.min.js"></script>
+    let camera, scene, renderer;
+    let controller;
+    let ball;
+    let score = 0;
+    let gameOver = false;
 
-    <!-- MediaPipe Hands -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    init();
+    animate();
 
-    <style>
-      body {
-        margin: 0;
-        overflow: hidden;
+    function init() {
+      // Szene erstellen
+      scene = new THREE.Scene();
+
+      // Kamera erstellen
+      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+
+      // Renderer erstellen
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      document.body.appendChild(renderer.domElement);
+
+      // ARButton hinzufügen
+      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+
+      // Licht hinzufügen
+      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+      light.position.set(0.5, 1, 0.25);
+      scene.add(light);
+
+      // Ball erstellen
+      const geometry = new THREE.SphereGeometry(0.1, 32, 32);
+      const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+      ball = new THREE.Mesh(geometry, material);
+      scene.add(ball);
+
+      // Startposition des Balls
+      resetBall();
+
+      // MediaPipe Hands initialisieren
+      initMediaPipeHands();
+
+      // Event Listener
+      window.addEventListener('resize', onWindowResize, false);
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function resetBall() {
+      ball.position.set(0, 1.5, -0.5);
+      gameOver = false;
+    }
+
+    function animate() {
+      renderer.setAnimationLoop(render);
+    }
+
+    function render(timestamp, frame) {
+      if (ball.position.y > -1 && !gameOver) {
+        // Ball fällt gleichmäßig über 2 Sekunden
+        ball.position.y -= 0.01;
+      } else if (!gameOver) {
+        // Game Over
+        alert('Game Over!');
+        score = 0;
+        document.getElementById('scoreboard').innerText = 'Punkte: ' + score;
+        resetBall();
       }
-      #scoreboard {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        color: #fff;
-        font-size: 24px;
-        z-index: 1;
-      }
-      #output_canvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        /* Zum Debuggen der Handerkennung sichtbar machen */
-        /* display: none; */
-      }
-    </style>
-  </head>
-  <body>
-    <div id="scoreboard">Punkte: 0</div>
-    <!-- Videoelement für MediaPipe (versteckt) -->
-    <video id="input_video" style="display: none;"></video>
-    <!-- Canvas für die Visualisierung der Handerkennung (optional) -->
-    <canvas
-      id="output_canvas"
-      width="640"
-      height="480"
-      style="display: none;"
-    ></canvas>
-    <a-scene
-      embedded
-      arjs="sourceType: webcam; debugUIEnabled: false;"
-      vr-mode-ui="enabled: false"
-    >
-      <!-- Ball -->
-      <a-sphere
-        id="ball"
-        position="0 2 -5"
-        radius="0.5"
-        color="#EF2D5E"
-        shadow
-      ></a-sphere>
 
-      <!-- Lichtquelle -->
-      <a-light type="ambient" color="#888"></a-light>
-      <a-light type="directional" intensity="0.5" position="0 1 0"></a-light>
+      renderer.render(scene, camera);
+    }
 
-      <!-- Kamera -->
-      <a-camera-static></a-camera-static>
-    </a-scene>
-
-    <script>
-      let score = 0;
-      let gameOver = false;
-      const ball = document.getElementById('ball');
-      const scoreboard = document.getElementById('scoreboard');
-
-      // MediaPipe initialisieren
-      const videoElement = document.getElementById('input_video');
-      const canvasElement = document.getElementById('output_canvas');
-      const canvasCtx = canvasElement.getContext('2d');
-
+    // MediaPipe Hands Integration
+    function initMediaPipeHands() {
       const hands = new Hands({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-        },
+        }
       });
 
       hands.setOptions({
         maxNumHands: 1,
         modelComplexity: 1,
         minDetectionConfidence: 0.7,
-        minTrackingConfidence: 0.7,
+        minTrackingConfidence: 0.7
       });
 
       hands.onResults(onResults);
 
-      // Kamera initialisieren
-      const mpCamera = new Camera(videoElement, {
-        onFrame: async () => {
-          await hands.send({ image: videoElement });
-        },
-        width: 640,
-        height: 480,
-      });
-      mpCamera.start();
+      // Zugriff auf den Kamerastream von WebXR
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(function (stream) {
+          const video = document.createElement('video');
+          video.srcObject = stream;
+          video.play();
+
+          video.onloadedmetadata = function () {
+            processVideoFrame(video);
+          };
+        })
+        .catch(function (err) {
+          console.error('Fehler beim Zugriff auf die Kamera: ' + err);
+        });
+
+      function processVideoFrame(video) {
+        async function frameProcessing() {
+          await hands.send({ image: video });
+          requestAnimationFrame(frameProcessing);
+        }
+        frameProcessing();
+      }
 
       function onResults(results) {
-        if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
-          return;
-        }
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+          const landmarks = results.multiHandLandmarks[0];
 
-        // Optional: Visualisierung der Handerkennung (zum Debuggen)
-        /*
-        canvasCtx.save();
-        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        canvasCtx.drawImage(
-          results.image,
-          0,
-          0,
-          canvasElement.width,
-          canvasElement.height
-        );
-        for (const landmarks of results.multiHandLandmarks) {
-          drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
-            color: '#00FF00',
-            lineWidth: 2,
-          });
-          drawLandmarks(canvasCtx, landmarks, {
-            color: '#FF0000',
-            lineWidth: 1,
-          });
-        }
-        canvasCtx.restore();
-        */
+          // Index-Finger-Spitze
+          const indexTip = landmarks[8];
 
-        // Hole die Landmarken der ersten erkannten Hand
-        const landmarks = results.multiHandLandmarks[0];
-        const indexFingerTip = landmarks[8]; // Index-Finger-Spitze
+          // Umrechnung der Koordinaten
+          const x = (indexTip.x - 0.5) * 2; // Zwischen -1 und 1
+          const y = -(indexTip.y - 0.5) * 2; // Zwischen -1 und 1
 
-        // Bildschirmkoordinaten (0 bis 1) zu AR-Szenen-Koordinaten umrechnen
-        const handX = (indexFingerTip.x - 0.5) * 10; // Skalierungsfaktor anpassen
-        const handY = -(indexFingerTip.y - 0.5) * 10;
-        const handZ = -5 + (indexFingerTip.z * 10); // Z-Koordinate
+          // Handposition in der Szene
+          const handPosition = new THREE.Vector3(x, y, -0.5);
 
-        const handPosition = new THREE.Vector3(handX, handY, handZ);
-
-        // Position des Balls
-        const ballPosition = new THREE.Vector3();
-        ball.object3D.getWorldPosition(ballPosition);
-
-        // Berechne die Distanz zwischen Hand und Ball
-        const distance = handPosition.distanceTo(ballPosition);
-
-        if (distance < 0.5 && !gameOver) {
-          score += 1;
-          scoreboard.innerText = 'Punkte: ' + score;
-          gameOver = true;
-          setTimeout(dropBall, 500);
-        }
-      }
-
-      function dropBall() {
-        ball.setAttribute('position', '0 2 -5');
-        ball.object3D.position.set(0, 2, -5);
-        gameOver = false;
-        animateBall();
-      }
-
-      function animateBall() {
-        const startY = 2;
-        const endY = -1;
-        const duration = 2000; // 2 Sekunden
-        const startTime = performance.now();
-
-        function fall(currentTime) {
-          if (gameOver) return;
-          const elapsed = currentTime - startTime;
-          const progress = Math.min(elapsed / duration, 1);
-          const newY = startY + (endY - startY) * progress;
-          ball.object3D.position.y = newY;
-
-          if (progress < 1) {
-            requestAnimationFrame(fall);
-          } else if (!gameOver) {
-            alert('Game Over!');
+          // Überprüfen, ob die Hand den Ball berührt
+          if (handPosition.distanceTo(ball.position) < 0.15 && !gameOver) {
+            score += 1;
+            document.getElementById('scoreboard').innerText = 'Punkte: ' + score;
             gameOver = true;
-            score = 0;
-            scoreboard.innerText = 'Punkte: ' + score;
-            setTimeout(dropBall, 1000);
+            setTimeout(resetBall, 500);
           }
         }
-        requestAnimationFrame(fall);
       }
-
-      // Spiel starten
-      window.addEventListener('load', () => {
-        dropBall();
-      });
-    </script>
-  </body>
+    }
+  </script>
+</body>
 </html>
 
