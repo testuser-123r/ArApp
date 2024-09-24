@@ -1,146 +1,127 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <title>Interaktives AR-Ball Beispiel</title>
-  <!-- A-Frame Bibliothek -->
-  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-  <!-- AR.js für A-Frame -->
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.min.js"></script>
-  <style>
-    body, html {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      height: 100%;
-      width: 100%;
-      background-color: #000; /* Hintergrund schwarz für besseren Kontrast */
-    }
-    #score {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      color: white;
-      background: rgba(0,0,0,0.7);
-      padding: 10px;
-      border-radius: 5px;
-      font-family: Arial, sans-serif;
-      z-index: 1;
-    }
-    #info {
-      position: absolute;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: white;
-      background: rgba(0,0,0,0.7);
-      padding: 10px;
-      border-radius: 5px;
-      font-family: Arial, sans-serif;
-      z-index: 1;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>AR Ball Spiel</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        video, canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 20px;
+            z-index: 1;
+        }
+    </style>
 </head>
 <body>
-  <!-- Punktestand Anzeige -->
-  <div id="score">Punkte: 0</div>
+    <div id="overlay">
+        <p id="score">Punkte: 0</p>
+        <p id="misses">Verfehlt: 0</p>
+    </div>
+    <video id="video" width="640" height="480" autoplay playsinline style="display: none;"></video>
+    <canvas id="canvas" width="640" height="480"></canvas>
 
-  <!-- AR-Szene -->
-  <a-scene 
-    embedded 
-    arjs="sourceType: webcam; debugUIEnabled: false;" 
-    renderer="logarithmicDepthBuffer: true; colorManagement: true;"
-    vr-mode-ui="enabled: false"
-    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
-  >
-    <!-- Lichtquellen -->
-    <a-entity light="type: ambient; color: #FFFFFF"></a-entity>
-    <a-entity light="type: directional; color: #FFFFFF; intensity: 0.5" position="0 1 1"></a-entity>
+    <!-- Einbindung von TensorFlow.js und dem Handpose-Modell -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@3.19.0/dist/tf-core.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@3.19.0/dist/tf-converter.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose@0.0.7/dist/handpose.min.js"></script>
 
-    <!-- Hiro-Marker -->
-    <a-marker preset="hiro" id="marker">
-      <!-- Interaktiver Ball -->
-      <a-sphere 
-        id="ball" 
-        position="0 0.5 0" 
-        radius="0.5" 
-        color="#FF0000"
-        animation__rotate="property: rotation; to: 0 360 0; loop: true; dur: 2000; easing: linear"
-        class="clickable"
-      ></a-sphere>
-    </a-marker>
+    <script>
+        let video = document.getElementById('video');
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext('2d');
+        let model;
+        let ball = { x: Math.random() * canvas.width, y: 0, radius: 20 };
+        let score = 0;
+        let misses = 0;
+        let gameOver = false;
 
-    <!-- Kamera -->
-    <a-entity camera></a-entity>
-  </a-scene>
+        async function init() {
+            // Webcam starten
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
 
-  <!-- Benutzerhinweise -->
-  <div id="info">
-    📷 Richte deine Kamera auf den Hiro-Marker und klicke/tippe auf den Ball, um ihn wegzuschlagen!
-  </div>
+            // Handpose-Modell laden
+            model = await handpose.load();
 
-  <script>
-    // Punktestand initialisieren
-    let score = 0;
-    const scoreElement = document.getElementById('score');
-
-    // Funktion zur Aktualisierung des Punktestands
-    function updateScore() {
-      score += 1;
-      scoreElement.textContent = 'Punkte: ' + score;
-    }
-
-    // Funktion zum Erzeugen eines neuen Balls
-    function spawnBall() {
-      const marker = document.getElementById('marker');
-      const existingBall = document.getElementById('ball');
-
-      if (existingBall) {
-        // Entferne den bestehenden Ball
-        existingBall.parentNode.removeChild(existingBall);
-      }
-
-      // Erzeuge einen neuen Ball
-      const newBall = document.createElement('a-sphere');
-      newBall.setAttribute('id', 'ball');
-      newBall.setAttribute('position', '0 0.5 0');
-      newBall.setAttribute('radius', '0.5');
-      newBall.setAttribute('color', '#FF0000');
-      newBall.setAttribute('animation__rotate', 'property: rotation; to: 0 360 0; loop: true; dur: 2000; easing: linear');
-      newBall.setAttribute('class', 'clickable');
-
-      // Event Listener für Klicks/Taps hinzufügen
-      newBall.addEventListener('click', () => {
-        updateScore();
-        spawnBall();
-      });
-
-      // Füge den neuen Ball zum Marker hinzu
-      marker.appendChild(newBall);
-    }
-
-    // Warte, bis das DOM geladen ist
-    document.addEventListener('DOMContentLoaded', () => {
-      const marker = document.getElementById('marker');
-
-      // Event Listener für Marker-Erkennung hinzufügen
-      marker.addEventListener('markerFound', () => {
-        console.log('Marker gefunden');
-        spawnBall();
-      });
-
-      marker.addEventListener('markerLost', () => {
-        console.log('Marker verloren');
-        const existingBall = document.getElementById('ball');
-        if (existingBall) {
-          existingBall.parentNode.removeChild(existingBall);
+            // Spiel starten
+            video.addEventListener('loadeddata', loop);
         }
-      });
-    });
-  </script>
+
+        async function loop() {
+            if (gameOver) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Video spiegeln
+            ctx.save();
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+            ctx.restore();
+
+            // Handerkennung
+            const predictions = await model.estimateHands(video, true);
+            if (predictions.length > 0) {
+                const landmarks = predictions[0].landmarks;
+
+                // Handfläche zeichnen
+                ctx.beginPath();
+                ctx.arc(canvas.width - landmarks[0][0], landmarks[0][1], 10, 0, 2 * Math.PI);
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                ctx.fill();
+
+                // Kollisionsprüfung
+                let dx = (canvas.width - landmarks[0][0]) - ball.x;
+                let dy = landmarks[0][1] - ball.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < ball.radius + 10) {
+                    score++;
+                    document.getElementById('score').innerText = 'Punkte: ' + score;
+                    ball.x = Math.random() * canvas.width;
+                    ball.y = 0;
+                }
+            }
+
+            // Ball bewegen
+            ball.y += 5;
+            if (ball.y > canvas.height) {
+                ball.x = Math.random() * canvas.width;
+                ball.y = 0;
+                misses++;
+                document.getElementById('misses').innerText = 'Verfehlt: ' + misses;
+                if (misses >= 3) {
+                    gameOver = true;
+                    ctx.fillStyle = 'red';
+                    ctx.font = '40px Arial';
+                    ctx.fillText('Spiel vorbei!', canvas.width / 2 - 100, canvas.height / 2);
+                    return;
+                }
+            }
+
+            // Ball zeichnen
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, 2 * Math.PI);
+            ctx.fillStyle = 'blue';
+            ctx.fill();
+
+            requestAnimationFrame(loop);
+        }
+
+        init();
+    </script>
 </body>
 </html>
-
 
 
 
