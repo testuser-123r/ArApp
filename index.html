@@ -14,24 +14,10 @@
       font-size: 24px;
       z-index: 1;
     }
-    #start-button {
-      position: absolute;
-      bottom: 20px;
-      left: calc(50% - 50px);
-      width: 100px;
-      height: 40px;
-      background-color: #0066ff;
-      color: white;
-      text-align: center;
-      line-height: 40px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
   </style>
 </head>
 <body>
   <div id="scoreboard">Punkte: 0</div>
-  <div id="start-button">Start</div>
   <!-- Hauptskript -->
   <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.142.0/build/three.module.js';
@@ -41,8 +27,6 @@
     let ball;
     let score = 0;
     let gameOver = false;
-    let lastAcceleration = { x: null, y: null, z: null };
-    let hitRegistered = false;
 
     init();
 
@@ -75,19 +59,16 @@
       document.body.appendChild(renderer.domElement);
 
       // ARButton hinzufügen
-      const startButton = document.getElementById('start-button');
-      startButton.addEventListener('click', () => {
-        // AR-Session starten
-        document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
-        startButton.style.display = 'none';
-        animate();
-      });
+      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
 
       // Event Listener
       window.addEventListener('resize', onWindowResize, false);
 
-      // DeviceMotion Listener hinzufügen
-      window.addEventListener('devicemotion', onDeviceMotion, false);
+      // Klick-Event für die Interaktion
+      renderer.domElement.addEventListener('click', onClick, false);
+
+      // Starten der Animation
+      animate();
     }
 
     function onWindowResize() {
@@ -100,7 +81,6 @@
     function resetBall() {
       ball.position.set(0, 1.5, -0.5);
       gameOver = false;
-      hitRegistered = false;
     }
 
     function animate() {
@@ -122,35 +102,29 @@
       renderer.render(scene, camera);
     }
 
-    function onDeviceMotion(event) {
-      const acceleration = event.accelerationIncludingGravity;
+    function onClick(event) {
+      if (gameOver) return;
 
-      if (lastAcceleration.x !== null) {
-        const deltaX = Math.abs(acceleration.x - lastAcceleration.x);
-        const deltaY = Math.abs(acceleration.y - lastAcceleration.y);
-        const deltaZ = Math.abs(acceleration.z - lastAcceleration.z);
+      // Klick-Koordinaten ermitteln
+      const mouse = new THREE.Vector2();
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-        const totalAcceleration = deltaX + deltaY + deltaZ;
+      // Raycaster für den Klick erstellen
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouse, camera);
 
-        // Schwellenwert für Bewegung
-        const threshold = 20; // Wert anpassen je nach Empfindlichkeit
+      // Prüfen, ob der Ball angeklickt wurde
+      const intersects = raycaster.intersectObject(ball);
 
-        if (totalAcceleration > threshold && !hitRegistered && !gameOver) {
-          // Ball wurde "geschlagen" durch schnelle Bewegung
-          score += 1;
-          document.getElementById('scoreboard').innerText = 'Punkte: ' + score;
-          hitRegistered = true;
-          gameOver = true;
-          setTimeout(resetBall, 500);
-        }
+      if (intersects.length > 0) {
+        score += 1;
+        document.getElementById('scoreboard').innerText = 'Punkte: ' + score;
+        gameOver = true;
+        setTimeout(resetBall, 500);
       }
-
-      lastAcceleration = {
-        x: acceleration.x,
-        y: acceleration.y,
-        z: acceleration.z
-      };
     }
   </script>
 </body>
 </html>
+
