@@ -2,18 +2,12 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>AR Ballspiel mit Handerkennung</title>
+  <title>AR Ballspiel mit Hand-Tracking</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <!-- Three.js Bibliothek -->
   <script src="https://unpkg.com/three@0.142.0/build/three.min.js"></script>
-  <!-- ARButton für WebXR -->
-  <script type="module">
-    import { ARButton } from 'https://unpkg.com/three@0.142.0/examples/jsm/webxr/ARButton.js';
-  </script>
-  <!-- MediaPipe Hands -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <!-- WebXR Hand Tracking Bibliothek -->
+  <script src="https://unpkg.com/three@0.142.0/examples/jsm/webxr/HandSpace.js"></script>
   <style>
     body { margin: 0; overflow: hidden; }
     #scoreboard {
@@ -24,14 +18,27 @@
       font-size: 24px;
       z-index: 1;
     }
+    #ar-button {
+      position: absolute;
+      bottom: 20px;
+      left: calc(50% - 50px);
+      width: 100px;
+      height: 40px;
+      background-color: #0066ff;
+      color: white;
+      text-align: center;
+      line-height: 40px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
   <div id="scoreboard">Punkte: 0</div>
-  <!-- Hauptskript -->
+  <div id="ar-button">Start AR</div>
   <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.142.0/build/three.module.js';
-    import { ARButton } from 'https://unpkg.com/three@0.142.0/examples/jsm/webxr/ARButton.js';
+    import { XRHandModelFactory } from 'https://unpkg.com/three@0.142.0/examples/jsm/webxr/XRHandModelFactory.js';
 
     let camera, scene, renderer;
     let controller;
@@ -40,7 +47,6 @@
     let gameOver = false;
 
     init();
-    animate();
 
     function init() {
       // Szene erstellen
@@ -48,16 +54,6 @@
 
       // Kamera erstellen
       camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-
-      // Renderer erstellen
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setPixelRatio(window.devicePixelRatio);
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.xr.enabled = true;
-      document.body.appendChild(renderer.domElement);
-
-      // ARButton hinzufügen
-      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
 
       // Licht hinzufügen
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
@@ -73,11 +69,63 @@
       // Startposition des Balls
       resetBall();
 
-      // MediaPipe Hands initialisieren
-      initMediaPipeHands();
+      // Renderer erstellen
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      document.body.appendChild(renderer.domElement);
+
+      // ARButton hinzufügen
+      const arButton = document.getElementById('ar-button');
+      arButton.addEventListener('click', activateAR);
 
       // Event Listener
       window.addEventListener('resize', onWindowResize, false);
+    }
+
+    function activateAR() {
+      navigator.xr.isSessionSupported('immersive-ar').then(function (supported) {
+        if (supported) {
+          renderer.xr.setSessionInit({
+            requiredFeatures: ['hit-test', 'hand-tracking']
+          });
+          renderer.xr.setReferenceSpaceType('local');
+
+          renderer.xr.getSession().then(function (session) {
+            session.requestReferenceSpace('local').then(function (refSpace) {
+              renderer.xr.setReferenceSpace(refSpace);
+            });
+          });
+
+          document.getElementById('ar-button').style.display = 'none';
+          renderer.xr.setAnimationLoop(render);
+          document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test', 'hand-tracking'] }));
+
+          // Hand-Tracking initialisieren
+          initHandTracking();
+        } else {
+          alert('AR wird auf diesem Gerät nicht unterstützt.');
+        }
+      });
+    }
+
+    function initHandTracking() {
+      const handModelFactory = new XRHandModelFactory();
+
+      // Linke Hand
+      const leftHand = renderer.xr.getHand(0);
+      scene.add(leftHand);
+
+      const leftHandModel = handModelFactory.createHandModel(leftHand, 'mesh');
+      leftHand.add(leftHandModel);
+
+      // Rechte Hand
+      const rightHand = renderer.xr.getHand(1);
+      scene.add(rightHand);
+
+      const rightHandModel = handModelFactory.createHandModel(rightHand, 'mesh');
+      rightHand.add(rightHandModel);
     }
 
     function onWindowResize() {
@@ -92,10 +140,6 @@
       gameOver = false;
     }
 
-    function animate() {
-      renderer.setAnimationLoop(render);
-    }
-
     function render(timestamp, frame) {
       if (ball.position.y > -1 && !gameOver) {
         // Ball fällt gleichmäßig über 2 Sekunden
@@ -108,69 +152,36 @@
         resetBall();
       }
 
+      // Handpositionen überprüfen
+      checkHandInteractions();
+
       renderer.render(scene, camera);
     }
 
-    // MediaPipe Hands Integration
-    function initMediaPipeHands() {
-      const hands = new Hands({
-        locateFile: (file) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-        }
-      });
+    function checkHandInteractions() {
+      const session = renderer.xr.getSession();
 
-      hands.setOptions({
-        maxNumHands: 1,
-        modelComplexity: 1,
-        minDetectionConfidence: 0.7,
-        minTrackingConfidence: 0.7
-      });
+      if (session) {
+        for (const inputSource of session.inputSources) {
+          if (inputSource.hand && inputSource.handedness) {
+            const indexFingerTip = inputSource.hand.get('index-finger-tip');
 
-      hands.onResults(onResults);
+            if (indexFingerTip) {
+              const position = new THREE.Vector3();
+              const orientation = new THREE.Quaternion();
+              const matrix = new THREE.Matrix4();
 
-      // Zugriff auf den Kamerastream von WebXR
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(function (stream) {
-          const video = document.createElement('video');
-          video.srcObject = stream;
-          video.play();
+              // Holen der Position des Fingers
+              indexFingerTip.matrix.decompose(position, orientation, new THREE.Vector3());
 
-          video.onloadedmetadata = function () {
-            processVideoFrame(video);
-          };
-        })
-        .catch(function (err) {
-          console.error('Fehler beim Zugriff auf die Kamera: ' + err);
-        });
-
-      function processVideoFrame(video) {
-        async function frameProcessing() {
-          await hands.send({ image: video });
-          requestAnimationFrame(frameProcessing);
-        }
-        frameProcessing();
-      }
-
-      function onResults(results) {
-        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-          const landmarks = results.multiHandLandmarks[0];
-
-          // Index-Finger-Spitze
-          const indexTip = landmarks[8];
-
-          // Umrechnung der Koordinaten
-          const x = (indexTip.x - 0.5) * 2; // Zwischen -1 und 1
-          const y = -(indexTip.y - 0.5) * 2; // Zwischen -1 und 1
-
-          // Handposition in der Szene
-          const handPosition = new THREE.Vector3(x, y, -0.5);
-
-          // Überprüfen, ob die Hand den Ball berührt
-          if (handPosition.distanceTo(ball.position) < 0.15 && !gameOver) {
-            score += 1;
-            document.getElementById('scoreboard').innerText = 'Punkte: ' + score;
-            gameOver = true;
-            setTimeout(resetBall, 500);
+              // Überprüfen, ob der Finger den Ball berührt
+              if (position.distanceTo(ball.position) < 0.1 && !gameOver) {
+                score += 1;
+                document.getElementById('scoreboard').innerText = 'Punkte: ' + score;
+                gameOver = true;
+                setTimeout(resetBall, 500);
+              }
+            }
           }
         }
       }
@@ -178,4 +189,3 @@
   </script>
 </body>
 </html>
-
