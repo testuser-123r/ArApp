@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
   <head>
@@ -39,8 +40,8 @@
       <!-- Ball -->
       <a-sphere
         id="ball"
-        position="0 2 -5"
-        radius="0.5"
+        position="2 1 -5"
+        radius="0.3"
         color="#EF2D5E"
         shadow
       ></a-sphere>
@@ -69,17 +70,17 @@
       const scoreboard = document.getElementById('scoreboard');
 
       function dropBall() {
-        ball.setAttribute('position', '0 2 -5');
+        ball.setAttribute('position', '2 1 -5');
         gameOver = false;
 
         // Entferne vorhandene Animationen
         ball.removeAttribute('animation');
 
-        // Füge die Animation hinzu
+        // Füge die Animation hinzu (von rechts nach links)
         ball.setAttribute('animation', {
           property: 'position',
-          to: '0 -1 -5',
-          dur: 2000,
+          to: '-2 -1 -5',
+          dur: 3000,
           easing: 'linear'
         });
       }
@@ -95,22 +96,6 @@
       });
 
       // Bewegungserkennung einrichten
-      if (typeof DeviceMotionEvent.requestPermission === 'function') {
-        // iOS 13+
-        DeviceMotionEvent.requestPermission()
-          .then((response) => {
-            if (response === 'granted') {
-              initShakeEvent();
-            } else {
-              alert('Bewegungserkennung wurde nicht erlaubt.');
-            }
-          })
-          .catch(console.error);
-      } else {
-        // Anderes Gerät
-        initShakeEvent();
-      }
-
       function initShakeEvent() {
         const shakeEvent = new Shake({ threshold: 15 });
         shakeEvent.start();
@@ -127,12 +112,32 @@
         }, false);
       }
 
+      // Bewegungserlaubnis anfordern (für iOS)
+      function requestMotionPermission() {
+        if (
+          typeof DeviceMotionEvent !== 'undefined' &&
+          typeof DeviceMotionEvent.requestPermission === 'function'
+        ) {
+          DeviceMotionEvent.requestPermission()
+            .then((response) => {
+              if (response == 'granted') {
+                initShakeEvent();
+              } else {
+                alert('Bewegungserkennung wurde nicht erlaubt.');
+              }
+            })
+            .catch(console.error);
+        } else {
+          // Bewegungserkennung initialisieren
+          initShakeEvent();
+        }
+      }
+
       // Spiel starten
       window.addEventListener('load', () => {
         dropBall();
+        requestMotionPermission();
       });
     </script>
   </body>
 </html>
-
-
