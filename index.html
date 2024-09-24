@@ -71,34 +71,28 @@
       function dropBall() {
         ball.setAttribute('position', '0 2 -5');
         gameOver = false;
-        animateBall();
+
+        // Entferne vorhandene Animationen
+        ball.removeAttribute('animation');
+
+        // Füge die Animation hinzu
+        ball.setAttribute('animation', {
+          property: 'position',
+          to: '0 -1 -5',
+          dur: 2000,
+          easing: 'linear'
+        });
       }
 
-      function animateBall() {
-        const startY = 2;
-        const endY = -1;
-        const duration = 2000; // 2 Sekunden
-        const startTime = Date.now();
-
-        function fall() {
-          if (gameOver) return;
-          const elapsed = Date.now() - startTime;
-          const progress = Math.min(elapsed / duration, 1);
-          const newY = startY + (endY - startY) * progress;
-          ball.setAttribute('position', `0 ${newY} -5`);
-
-          if (progress < 1) {
-            requestAnimationFrame(fall);
-          } else if (!gameOver) {
-            alert('Game Over!');
-            gameOver = true;
-            score = 0;
-            scoreboard.innerText = 'Punkte: ' + score;
-            setTimeout(dropBall, 1000);
-          }
+      ball.addEventListener('animationcomplete', function () {
+        if (!gameOver) {
+          alert('Game Over!');
+          gameOver = true;
+          score = 0;
+          scoreboard.innerText = 'Punkte: ' + score;
+          setTimeout(dropBall, 1000);
         }
-        requestAnimationFrame(fall);
-      }
+      });
 
       // Bewegungserkennung einrichten
       if (typeof DeviceMotionEvent.requestPermission === 'function') {
@@ -126,6 +120,8 @@
             score += 1;
             scoreboard.innerText = 'Punkte: ' + score;
             gameOver = true;
+            // Stoppe die aktuelle Animation
+            ball.removeAttribute('animation');
             setTimeout(dropBall, 500);
           }
         }, false);
