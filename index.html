@@ -1,130 +1,103 @@
 <!DOCTYPE html>
-<html lang="de">
-<head>
-  <meta charset="UTF-8">
-  <title>AR Würfelspiel</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <style>
-    body { margin: 0; overflow: hidden; }
-    #scoreboard {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      color: #fff;
-      font-size: 24px;
-      z-index: 1;
-    }
-  </style>
-</head>
-<body>
-  <div id="scoreboard">Punkte: 0</div>
-  <!-- Hauptskript -->
-  <script type="module">
-    import * as THREE from 'https://unpkg.com/three@0.142.0/build/three.module.js';
-    import { ARButton } from 'https://unpkg.com/three@0.142.0/examples/jsm/webxr/ARButton.js';
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Falling Ball Game</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no"
+    />
+    <!-- A-Frame Bibliothek -->
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <!-- AR.js für A-Frame -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      #scoreboard {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: #fff;
+        font-size: 24px;
+        z-index: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="scoreboard">Punkte: 0</div>
+    <a-scene
+      embedded
+      arjs="sourceType: webcam; debugUIEnabled: false;"
+      vr-mode-ui="enabled: false"
+    >
+      <!-- Ball -->
+      <a-sphere
+        id="ball"
+        position="0 2 -5"
+        radius="0.5"
+        color="#EF2D5E"
+        shadow
+      ></a-sphere>
 
-    let camera, scene, renderer;
-    let cube;
-    let score = 0;
-    let gameOver = false;
+      <!-- Lichtquelle -->
+      <a-light type="ambient" color="#888"></a-light>
+      <a-light
+        type="directional"
+        intensity="0.5"
+        position="0 1 0"
+      ></a-light>
 
-    init();
+      <!-- Kamera -->
+      <a-camera-static></a-camera-static>
+    </a-scene>
 
-    function init() {
-      // Szene erstellen
-      scene = new THREE.Scene();
+    <script>
+      let score = 0;
+      let gameOver = false;
+      const ball = document.getElementById('ball');
+      const scoreboard = document.getElementById('scoreboard');
 
-      // Kamera erstellen
-      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-
-      // Licht hinzufügen
-      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-      light.position.set(0.5, 1, 0.25);
-      scene.add(light);
-
-      // Würfel erstellen
-      const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-      const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-      cube = new THREE.Mesh(geometry, material);
-      scene.add(cube);
-
-      // Startposition des Würfels
-      resetCube();
-
-      // Renderer erstellen
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setPixelRatio(window.devicePixelRatio);
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.xr.enabled = true;
-      document.body.appendChild(renderer.domElement);
-
-      // ARButton hinzufügen
-      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
-
-      // Event Listener
-      window.addEventListener('resize', onWindowResize, false);
-
-      // Touch-Event für die Interaktion
-      renderer.domElement.addEventListener('touchstart', onTouchStart, false);
-
-      // Starten der Animation
-      animate();
-    }
-
-    function onWindowResize() {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-
-    function resetCube() {
-      cube.position.set(0, 1.5, -0.5);
-      gameOver = false;
-    }
-
-    function animate() {
-      renderer.setAnimationLoop(render);
-    }
-
-    function render(timestamp, frame) {
-      if (cube.position.y > -1 && !gameOver) {
-        // Würfel fällt gleichmäßig über 2 Sekunden
-        cube.position.y -= 0.01;
-      } else if (!gameOver) {
-        // Game Over
-        alert('Game Over!');
-        score = 0;
-        document.getElementById('scoreboard').innerText = 'Punkte: ' + score;
-        resetCube();
+      function dropBall() {
+        ball.setAttribute('position', '0 2 -5');
+        ball.object3D.position.y = 2;
+        gameOver = false;
+        animateBall();
       }
 
-      renderer.render(scene, camera);
-    }
-
-    function onTouchStart(event) {
-      if (gameOver) return;
-
-      // Touch-Koordinaten ermitteln
-      const touch = event.touches[0];
-      const x = (touch.clientX / window.innerWidth) * 2 - 1;
-      const y = -(touch.clientY / window.innerHeight) * 2 + 1;
-
-      // Raycaster für die Berührung erstellen
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera({ x: x, y: y }, camera);
-
-      // Prüfen, ob der Würfel berührt wurde
-      const intersects = raycaster.intersectObject(cube);
-
-      if (intersects.length > 0) {
-        score += 1;
-        document.getElementById('scoreboard').innerText = 'Punkte: ' + score;
-        gameOver = true;
-        setTimeout(resetCube, 500);
+      function animateBall() {
+        const fallSpeed = 0.02;
+        function fall() {
+          if (ball.object3D.position.y > -1 && !gameOver) {
+            ball.object3D.position.y -= fallSpeed;
+            requestAnimationFrame(fall);
+          } else if (!gameOver) {
+            alert('Game Over!');
+            gameOver = true;
+            score = 0;
+            scoreboard.innerText = 'Punkte: ' + score;
+            setTimeout(dropBall, 1000);
+          }
+        }
+        fall();
       }
-    }
-  </script>
-</body>
+
+      ball.addEventListener('click', () => {
+        if (!gameOver) {
+          score += 1;
+          scoreboard.innerText = 'Punkte: ' + score;
+          gameOver = true;
+          setTimeout(dropBall, 500);
+        }
+      });
+
+      // Spiel starten
+      window.addEventListener('load', () => {
+        dropBall();
+      });
+    </script>
+  </body>
 </html>
 
