@@ -32,8 +32,8 @@
 <body>
     <div id="score">Punkte: 0</div>
     <div id="lives">Leben: 3</div>
-    <script src="https://threejs.org/build/three.min.js"></script>
-    <script src="https://threejs.org/examples/jsm/webxr/ARButton.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.141/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.141/examples/jsm/webxr/ARButton.js"></script>
     <script>
         let camera, scene, renderer;
         let controller;
@@ -57,12 +57,14 @@
                 20
             );
 
+            // Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.xr.enabled = true;
             document.body.appendChild(renderer.domElement);
 
+            // AR Button
             document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
 
             // Licht hinzufügen
@@ -71,9 +73,10 @@
             scene.add(light);
 
             // Reticle für Hit-Testing
-            const reticleGeometry = new THREE.RingGeometry(0.05, 0.06, 32).rotateX(-Math.PI / 2);
-            const reticleMaterial = new THREE.MeshBasicMaterial();
+            const reticleGeometry = new THREE.RingGeometry(0.05, 0.055, 32).rotateX(-Math.PI / 2);
+            const reticleMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
             reticle = new THREE.Mesh(reticleGeometry, reticleMaterial);
+            reticle.matrixAutoUpdate = false;
             reticle.visible = false;
             scene.add(reticle);
 
@@ -91,6 +94,10 @@
                 ball.position.setFromMatrixPosition(reticle.matrix);
                 scene.add(ball);
                 balls.push(ball);
+
+                // Punkte erhöhen
+                score += 1;
+                document.getElementById('score').textContent = `Punkte: ${score}`;
             }
         }
 
@@ -111,14 +118,14 @@
                 const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
 
-                if (hitTestSourceRequested === false) {
-                    session.requestReferenceSpace('viewer').then(function (referenceSpace) {
-                        session.requestHitTestSource({ space: referenceSpace }).then(function (source) {
+                if (!hitTestSourceRequested) {
+                    session.requestReferenceSpace('viewer').then((viewerSpace) => {
+                        session.requestHitTestSource({ space: viewerSpace }).then((source) => {
                             hitTestSource = source;
                         });
                     });
 
-                    session.addEventListener('end', function () {
+                    session.addEventListener('end', () => {
                         hitTestSourceRequested = false;
                         hitTestSource = null;
                     });
@@ -126,14 +133,15 @@
                     hitTestSourceRequested = true;
                 }
 
-                if (hitTestSource) {
+                if (hitTestSource && reticle) {
                     const hitTestResults = frame.getHitTestResults(hitTestSource);
 
-                    if (hitTestResults.length) {
+                    if (hitTestResults.length > 0) {
                         const hit = hitTestResults[0];
+                        const pose = hit.getPose(referenceSpace);
 
                         reticle.visible = true;
-                        reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
+                        reticle.matrix.fromArray(pose.transform.matrix);
                     } else {
                         reticle.visible = false;
                     }
@@ -167,3 +175,4 @@
     </script>
 </body>
 </html>
+
