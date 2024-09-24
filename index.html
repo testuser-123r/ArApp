@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
   <head>
@@ -40,7 +39,7 @@
       <!-- Ball -->
       <a-sphere
         id="ball"
-        position="2 1 -5"
+        position="0 2 -5"
         radius="0.3"
         color="#EF2D5E"
         shadow
@@ -70,16 +69,17 @@
       const scoreboard = document.getElementById('scoreboard');
 
       function dropBall() {
-        ball.setAttribute('position', '2 1 -5');
+        ball.setAttribute('visible', true);
+        ball.setAttribute('position', '0 2 -5');
         gameOver = false;
 
         // Entferne vorhandene Animationen
         ball.removeAttribute('animation');
 
-        // Füge die Animation hinzu (von rechts nach links)
+        // Füge die Animation hinzu (gerade nach unten)
         ball.setAttribute('animation', {
           property: 'position',
-          to: '-2 -1 -5',
+          to: '0 -1 -5',
           dur: 3000,
           easing: 'linear'
         });
@@ -107,6 +107,8 @@
             gameOver = true;
             // Stoppe die aktuelle Animation
             ball.removeAttribute('animation');
+            // Verstecke den Ball
+            ball.setAttribute('visible', false);
             setTimeout(dropBall, 500);
           }
         }, false);
