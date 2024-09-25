@@ -8,7 +8,7 @@
       content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no"
     />
     <!-- A-Frame Library -->
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <!-- AR.js für A-Frame -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.js"></script>
     <style>
@@ -32,7 +32,7 @@
 
     <a-scene
       embedded
-      arjs="sourceType: webcam; debugUIEnabled: false;"
+      arjs="sourceType: webcam; debugUIEnabled: true;"
       vr-mode-ui="enabled: false"
     >
       <!-- Hiro-Marker -->
@@ -44,6 +44,7 @@
           radius="0.2"
           color="#EF2D5E"
           shadow
+          ball-animator
         ></a-sphere>
       </a-marker>
 
@@ -54,90 +55,90 @@
         intensity="0.5"
         position="0 1 0"
       ></a-light>
-
-      <!-- Kamera -->
-      <a-entity camera></a-entity>
     </a-scene>
 
     <script>
-      let score = 0;
-      const ball = document.getElementById('ball');
-      const scoreboard = document.getElementById('scoreboard');
+      AFRAME.registerComponent('ball-animator', {
+        init: function () {
+          this.score = 0;
+          this.scoreboard = document.getElementById('scoreboard');
+          this.ball = this.el;
+          this.ballVelocity = new THREE.Vector3(0, -0.02, 0);
+          this.isBallFlying = true;
 
-      // Initiale Geschwindigkeit des Balles
-      let ballVelocity = new THREE.Vector3(0, -0.02, 0); // Start mit fallender Geschwindigkeit
-      let isBallFlying = true;
+          // Start the Ball
+          this.dropBall();
+        },
 
-      // Funktion zum Starten oder Neustarten des Balles
-      function dropBall() {
-        console.log('Ball wird fallen gelassen');
-        // Setze den Ball über dem Marker
-        ball.object3D.position.set(0, 1, 0);
-        ball.setAttribute('visible', 'true');
-        ballVelocity.set(0, -0.02, 0); // Setze die Anfangsgeschwindigkeit nach unten
-        isBallFlying = true;
-      }
+        dropBall: function () {
+          console.log('Ball wird fallen gelassen');
+          // Setze den Ball über dem Marker
+          this.ball.object3D.position.set(0, 1, 0);
+          this.ball.setAttribute('visible', 'true');
+          this.ballVelocity.set(0, -0.02, 0); // Anfangsgeschwindigkeit nach unten
+          this.isBallFlying = true;
+        },
 
-      // Funktion zur Animation des Balles
-      function animateBall() {
-        // Verwende die Tick-Funktion von A-Frame für kontinuierliche Updates
-        ball.sceneEl.addEventListener('tick', function () {
-          if (isBallFlying) {
+        tick: function (time, deltaTime) {
+          if (this.isBallFlying) {
             // Bewege den Ball nach unten
-            ball.object3D.position.add(ballVelocity);
+            this.ball.object3D.position.add(this.ballVelocity);
 
-            // Überprüfe, ob der Ball den unteren Bereich erreicht hat (z.B. y < 0)
-            if (ball.object3D.position.y < 0) {
+            // Überprüfe, ob der Ball den Boden erreicht hat (z.B. y < 0)
+            if (this.ball.object3D.position.y < 0) {
               console.log('Ball hat den Boden erreicht');
-              score += 1;
-              scoreboard.textContent = `Punkte: ${score}`;
-              resetBall();
+              this.score += 1;
+              this.updateScoreboard();
+              this.resetBall();
             }
 
-            // Überprüfe auf Kollision mit dem Marker (vereinfachte Annahme)
+            // Überprüfe auf Kollision mit dem Marker
             const marker = document.querySelector('a-marker');
-            const markerPos = new THREE.Vector3();
-            marker.object3D.getWorldPosition(markerPos);
+            if (marker) {
+              const markerPos = new THREE.Vector3();
+              marker.object3D.getWorldPosition(markerPos);
 
-            const ballPos = new THREE.Vector3();
-            ball.object3D.getWorldPosition(ballPos);
+              const ballPos = new THREE.Vector3();
+              this.ball.object3D.getWorldPosition(ballPos);
 
-            const distance = markerPos.distanceTo(ballPos);
-            // Definiere eine Schwelle für die Kollision
-            if (distance < 0.5) { // Anpassbar je nach Bedarf
-              console.log('Ball wurde getroffen!');
-              score += 5; // Punkte für Treffer
-              scoreboard.textContent = `Punkte: ${score}`;
-              // Ändere die Richtung des Balles
-              ballVelocity.y = 0.02; // Ball bewegt sich nach oben
-              isBallFlying = false;
+              const distance = markerPos.distanceTo(ballPos);
+              // Definiere eine Schwelle für die Kollision
+              if (distance < 0.5) { // Anpassbar je nach Bedarf
+                console.log('Ball wurde getroffen!');
+                this.score += 5; // Punkte für Treffer
+                this.updateScoreboard();
+                // Ändere die Richtung des Balles
+                this.ballVelocity.y = 0.02; // Ball bewegt sich nach oben
+                this.isBallFlying = false;
+              }
             }
-
           } else {
             // Ball bewegt sich nach oben
-            ball.object3D.position.add(ballVelocity);
+            this.ball.object3D.position.add(this.ballVelocity);
             // Verlangsamen der Aufwärtsbewegung
-            ballVelocity.multiplyScalar(0.98);
+            this.ballVelocity.multiplyScalar(0.98);
 
-            if (ball.object3D.position.y > 2) {
+            if (this.ball.object3D.position.y > 2) {
               console.log('Ball ist weggeflogen');
-              resetBall();
+              this.resetBall();
             }
           }
-        });
-      }
+        },
 
-      // Funktion zum Zurücksetzen des Balles
-      function resetBall() {
-        console.log('Ball wird zurückgesetzt');
-        ball.setAttribute('visible', 'false');
-        setTimeout(dropBall, 1000);
-      }
+        resetBall: function () {
+          console.log('Ball wird zurückgesetzt');
+          this.ball.setAttribute('visible', 'false');
+          const self = this;
+          setTimeout(function () {
+            self.dropBall();
+          }, 1000);
+        },
 
-      window.addEventListener('load', () => {
-        dropBall();
-        animateBall();
+        updateScoreboard: function () {
+          this.scoreboard.textContent = `Punkte: ${this.score}`;
+        }
       });
     </script>
   </body>
 </html>
+
