@@ -2,15 +2,15 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Falling Ball Game with Hiro Marker</title>
+    <title>Falling Ball Game mit Hiro Marker</title>
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no"
     />
     <!-- A-Frame Library -->
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <!-- AR.js for A-Frame -->
-    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.3.2/aframe/build/aframe-ar.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.js"></script>
     <style>
       body {
         margin: 0;
@@ -47,13 +47,15 @@
         ></a-sphere>
       </a-marker>
 
-      <!-- Light Sources -->
+      <!-- Lichtquellen -->
       <a-light type="ambient" color="#888"></a-light>
       <a-light
         type="directional"
         intensity="0.5"
         position="0 1 0"
       ></a-light>
+      
+      <a-entity camera></a-entity>
     </a-scene>
 
     <script>
@@ -90,6 +92,9 @@
             if (ballPos.y < 0) {
               // Ball hat den Boden erreicht
               console.log('Ball hat den Boden erreicht');
+              // Erhöhe die Punktzahl
+              score += 1;
+              scoreboard.textContent = `Punkte: ${score}`;
               resetBall();
             } else {
               requestAnimationFrame(moveBall);
