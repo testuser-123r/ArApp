@@ -7,8 +7,8 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no"
     />
-    <!-- A-Frame Library -->
-    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <!-- A-Frame Bibliothek -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <!-- AR.js für A-Frame -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.js"></script>
     <style>
@@ -40,7 +40,7 @@
         <!-- Ball -->
         <a-sphere
           id="ball"
-          position="0 1 0"
+          position="0 0.5 0"
           radius="0.2"
           color="#EF2D5E"
           shadow
@@ -50,11 +50,7 @@
 
       <!-- Lichtquellen -->
       <a-light type="ambient" color="#888"></a-light>
-      <a-light
-        type="directional"
-        intensity="0.5"
-        position="0 1 0"
-      ></a-light>
+      <a-light type="directional" intensity="0.5" position="0 1 0"></a-light>
     </a-scene>
 
     <script>
@@ -65,15 +61,13 @@
           this.ball = this.el;
           this.ballVelocity = new THREE.Vector3(0, -0.02, 0);
           this.isBallFlying = true;
-
-          // Start the Ball
-          this.dropBall();
+          this.resetBall();
         },
 
-        dropBall: function () {
-          console.log('Ball wird fallen gelassen');
+        resetBall: function () {
+          console.log('Ball wird zurückgesetzt');
           // Setze den Ball über dem Marker
-          this.ball.object3D.position.set(0, 1, 0);
+          this.ball.object3D.position.set(0, 0.5, 0);
           this.ball.setAttribute('visible', 'true');
           this.ballVelocity.set(0, -0.02, 0); // Anfangsgeschwindigkeit nach unten
           this.isBallFlying = true;
@@ -83,8 +77,10 @@
           if (this.isBallFlying) {
             // Bewege den Ball nach unten
             this.ball.object3D.position.add(this.ballVelocity);
+            // Simuliere leichte Gravitation
+            this.ballVelocity.y -= 0.0005;
 
-            // Überprüfe, ob der Ball den Boden erreicht hat (z.B. y < 0)
+            // Überprüfe, ob der Ball den Boden erreicht hat (y < 0)
             if (this.ball.object3D.position.y < 0) {
               console.log('Ball hat den Boden erreicht');
               this.score += 1;
@@ -103,10 +99,11 @@
 
               const distance = markerPos.distanceTo(ballPos);
               // Definiere eine Schwelle für die Kollision
-              if (distance < 0.5) { // Anpassbar je nach Bedarf
+              if (distance < 0.3) { // Anpassbar je nach Bedarf
                 console.log('Ball wurde getroffen!');
                 this.score += 5; // Punkte für Treffer
                 this.updateScoreboard();
+                this.pulseBall(); // Visueller Effekt
                 // Ändere die Richtung des Balles
                 this.ballVelocity.y = 0.02; // Ball bewegt sich nach oben
                 this.isBallFlying = false;
@@ -117,28 +114,28 @@
             this.ball.object3D.position.add(this.ballVelocity);
             // Verlangsamen der Aufwärtsbewegung
             this.ballVelocity.multiplyScalar(0.98);
-
-            if (this.ball.object3D.position.y > 2) {
+            if (this.ball.object3D.position.y > 1) {
               console.log('Ball ist weggeflogen');
               this.resetBall();
             }
           }
         },
 
-        resetBall: function () {
-          console.log('Ball wird zurückgesetzt');
-          this.ball.setAttribute('visible', 'false');
-          const self = this;
-          setTimeout(function () {
-            self.dropBall();
-          }, 1000);
-        },
-
         updateScoreboard: function () {
           this.scoreboard.textContent = `Punkte: ${this.score}`;
+        },
+
+        // Methode zum Pulsieren des Balls
+        pulseBall: function () {
+          const originalScale = this.ball.getAttribute('scale');
+          this.ball.setAttribute('scale', { x: 1.2, y: 1.2, z: 1.2 });
+          setTimeout(() => {
+            this.ball.setAttribute('scale', originalScale);
+          }, 200);
         }
       });
     </script>
   </body>
 </html>
+
 
