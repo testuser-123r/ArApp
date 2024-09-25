@@ -30,7 +30,7 @@
     <div id="scoreboard">Punkte: 0</div>
     <a-scene
       embedded
-      arjs="sourceType: webcam; debugUIEnabled: false;"
+      arjs="sourceType: webcam; facingMode: user; debugUIEnabled: false;"
       vr-mode-ui="enabled: false"
     >
       <!-- Ball -->
@@ -60,14 +60,10 @@
       const scoreboard = document.getElementById('scoreboard');
       const camera = document.querySelector('a-camera-static');
 
-      let isBallMoving = false;
+      let ballVelocity = new THREE.Vector3();
       let isBallFlying = false;
 
-      // Funktion zum Ballplatzieren
       function dropBall() {
-        if (isBallMoving) return; // Verhindert mehrere gleichzeitig laufende Animationen
-
-        isBallFlying = false;
         // Zufällige Startposition innerhalb eines kleineren Bereichs
         const startX = (Math.random() * 1.6 - 0.8).toFixed(2); // Zwischen -0.8 und 0.8
         const startY = (Math.random() * 1 + 1.5).toFixed(2); // Höhe zwischen 1.5 und 2.5
@@ -75,11 +71,11 @@
 
         ball.setAttribute('position', `${startX} ${startY} ${startZ}`);
         ball.setAttribute('visible', 'true');
-        isBallMoving = true;
+        isBallFlying = false;
+        ballVelocity.set(0, 0, 0);
         animateBall();
       }
 
-      // Funktion zur Ballanimation
       function animateBall() {
         const speed = 0.02;
 
@@ -101,7 +97,7 @@
             console.log('Ball distance:', distance);
 
             if (distance < 0.5) {
-              handleMiss();
+              handleCollision();
               return; // Stoppt die Bewegung
             }
 
@@ -113,32 +109,32 @@
               resetBall();
             }
           } else {
-            // Ball wurde getroffen und fliegt weg
-            const flySpeed = 0.05;
-            const flyDirection = new THREE.Vector3();
-            flyDirection.subVectors(ballPos, cameraPos).normalize().multiplyScalar(flySpeed);
-            ball.object3D.position.add(flyDirection);
+            // Ball bewegt sich nach oben (wenn getroffen)
+            ball.object3D.position.add(ballVelocity);
+            ballVelocity.multiplyScalar(0.98); // Verlangsamt den Ball
 
-            // Ball zurücksetzen, wenn er weit genug weggeflogen ist
-            const newDistance = ball.object3D.position.distanceTo(cameraPos);
-            if (newDistance > 5) {
+            // Wenn der Ball weit genug weggeflogen ist, zurücksetzen
+            if (ball.object3D.position.y > 5) {
               resetBall();
             } else {
               requestAnimationFrame(moveBall);
             }
           }
         }
-
         moveBall();
       }
 
-      // Funktion zum Behandeln eines Treffers
-      function handleHit() {
+      function handleCollision() {
         if (!isBallFlying) {
           isBallFlying = true;
+          // Setze eine zufällige Geschwindigkeit für den Ball
+          ballVelocity.set(
+            (Math.random() - 0.5) * 0.05,
+            0.1 + Math.random() * 0.05,
+            (Math.random() - 0.5) * 0.05
+          );
           score += 1;
           scoreboard.innerText = 'Punkte: ' + score;
-          console.log('Hit detected. Score:', score);
 
           // Optional: Ball kurz rot leuchten lassen als visuelles Feedback
           ball.setAttribute('color', '#FF0000');
@@ -151,17 +147,8 @@
         }
       }
 
-      // Funktion zum Behandeln eines verpassten Balls
-      function handleMiss() {
-        // Ball erreicht die Kamera ohne getroffen zu werden
-        resetBall();
-      }
-
-      // Funktion zum Zurücksetzen des Balls
       function resetBall() {
         ball.setAttribute('visible', 'false');
-        isBallMoving = false;
-        isBallFlying = false;
         setTimeout(dropBall, 1000);
       }
 
@@ -217,7 +204,7 @@
               const distance = ballPos.distanceTo(cameraPos);
 
               if (distance < 1 && !isBallFlying) {
-                handleHit();
+                handleCollision();
               }
             }
           }
