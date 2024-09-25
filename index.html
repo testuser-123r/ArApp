@@ -28,222 +28,270 @@
   </head>
   <body>
     <div id="scoreboard">Punkte: 0</div>
-    <a-scene
-      embedded
-      arjs="sourceType: webcam; facingMode: user; debugUIEnabled: false;"
-      vr-mode-ui="enabled: false"
-    >
-      <!-- Ball -->
-      <a-sphere
-        id="ball"
-        position="0 2 -5"
-        radius="0.2"
-        color="#EF2D5E"
-        shadow
-      ></a-sphere>
-
-      <!-- Lichtquellen -->
-      <a-light type="ambient" color="#888"></a-light>
-      <a-light
-        type="directional"
-        intensity="0.5"
-        position="0 1 0"
-      ></a-light>
-
-      <!-- Kamera -->
-      <a-camera-static></a-camera-static>
-    </a-scene>
+    <div id="ar-container"></div>
 
     <script>
-      let score = 0;
-      const ball = document.getElementById('ball');
-      const scoreboard = document.getElementById('scoreboard');
-      const camera = document.querySelector('a-camera-static');
+      // Initialisieren der AR-Szene mit Frontkamera
+      async function initARScene() {
+        // Überprüfen Sie, ob die Mediengeräte verfügbar sind
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+          console.error('Mediengeräte sind nicht verfügbar.');
+          return;
+        }
 
-      let ballVelocity = new THREE.Vector3();
-      let isBallFlying = false;
+        try {
+          // Geräte auflisten
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter(device => device.kind === 'videoinput');
 
-      function dropBall() {
-        // Zufällige Startposition innerhalb eines kleineren Bereichs
-        const startX = (Math.random() * 1.6 - 0.8).toFixed(2); // Zwischen -0.8 und 0.8
-        const startY = (Math.random() * 1 + 1.5).toFixed(2); // Höhe zwischen 1.5 und 2.5
-        const startZ = -4; // Etwas weiter von der Kamera entfernt
+          // Frontkamera finden
+          let frontCamera = videoDevices.find(device => device.label.toLowerCase().includes('front')) || videoDevices[0];
 
-        ball.setAttribute('position', `${startX} ${startY} ${startZ}`);
-        ball.setAttribute('visible', 'true');
-        isBallFlying = false;
-        ballVelocity.set(0, 0, 0);
-        animateBall();
-      }
-
-      function animateBall() {
-        const speed = 0.02;
-
-        function moveBall() {
-          if (!isBallFlying) {
-            // Bewege den Ball auf die Kamera zu
-            const ballPos = new THREE.Vector3();
-            ball.object3D.getWorldPosition(ballPos);
-
-            const cameraPos = new THREE.Vector3();
-            camera.object3D.getWorldPosition(cameraPos);
-
-            const direction = new THREE.Vector3();
-            direction.subVectors(cameraPos, ballPos).normalize().multiplyScalar(speed);
-            ball.object3D.position.add(direction);
-
-            // Überprüfe die Entfernung zwischen Ball und Kamera
-            const distance = ballPos.distanceTo(cameraPos);
-            console.log('Ball distance:', distance);
-
-            if (distance < 0.5) {
-              handleCollision();
-              return; // Stoppt die Bewegung
-            }
-
-            // Überprüfe, ob der Ball außerhalb des Sichtfelds ist
-            if (ballPos.z < 0) {
-              requestAnimationFrame(moveBall);
-            } else {
-              // Ball verpasst
-              resetBall();
-            }
-          } else {
-            // Ball bewegt sich nach oben (wenn getroffen)
-            ball.object3D.position.add(ballVelocity);
-            ballVelocity.multiplyScalar(0.98); // Verlangsamt den Ball
-
-            // Wenn der Ball weit genug weggeflogen ist, zurücksetzen
-            if (ball.object3D.position.y > 5) {
-              resetBall();
-            } else {
-              requestAnimationFrame(moveBall);
-            }
+          // Fallback, falls keine Frontkamera gefunden wurde
+          if (!frontCamera) {
+            frontCamera = videoDevices[0];
           }
-        }
-        moveBall();
-      }
 
-      function handleCollision() {
-        if (!isBallFlying) {
-          isBallFlying = true;
-          // Setze eine zufällige Geschwindigkeit für den Ball
-          ballVelocity.set(
-            (Math.random() - 0.5) * 0.05,
-            0.1 + Math.random() * 0.05,
-            (Math.random() - 0.5) * 0.05
-          );
-          score += 1;
-          scoreboard.innerText = 'Punkte: ' + score;
+          // Erstellen des a-scene Elements mit AR.js Konfigurationen
+          const scene = document.createElement('a-scene');
+          scene.setAttribute('embedded', '');
+          scene.setAttribute('arjs', `sourceType: webcam; facingMode: user; debugUIEnabled: false;`);
+          scene.setAttribute('vr-mode-ui', 'enabled: false');
 
-          // Optional: Ball kurz rot leuchten lassen als visuelles Feedback
-          ball.setAttribute('color', '#FF0000');
-          setTimeout(() => {
-            ball.setAttribute('color', '#EF2D5E');
-          }, 200);
+          // Erstellen des Ball-Elements
+          const ball = document.createElement('a-sphere');
+          ball.setAttribute('id', 'ball');
+          ball.setAttribute('position', '0 2 -5');
+          ball.setAttribute('radius', '0.2');
+          ball.setAttribute('color', '#EF2D5E');
+          ball.setAttribute('shadow', '');
+          scene.appendChild(ball);
 
-          // Ball zurücksetzen nach kurzer Verzögerung
-          setTimeout(resetBall, 500);
-        }
-      }
+          // Erstellen der Lichtquellen
+          const ambientLight = document.createElement('a-light');
+          ambientLight.setAttribute('type', 'ambient');
+          ambientLight.setAttribute('color', '#888');
+          scene.appendChild(ambientLight);
 
-      function resetBall() {
-        ball.setAttribute('visible', 'false');
-        setTimeout(dropBall, 1000);
-      }
+          const directionalLight = document.createElement('a-light');
+          directionalLight.setAttribute('type', 'directional');
+          directionalLight.setAttribute('intensity', '0.5');
+          directionalLight.setAttribute('position', '0 1 0');
+          scene.appendChild(directionalLight);
 
-      // Bewegungserkennung nur auf mobilen Geräten
-      let hasMotionSensor = false;
+          // Erstellen der Kamera
+          const camera = document.createElement('a-camera-static');
+          scene.appendChild(camera);
 
-      if (
-        typeof DeviceMotionEvent !== 'undefined' &&
-        typeof DeviceMotionEvent.requestPermission === 'function'
-      ) {
-        // iOS 13+ Geräte
-        DeviceMotionEvent.requestPermission()
-          .then((response) => {
-            if (response === 'granted') {
-              hasMotionSensor = true;
-            }
-            dropBall();
-          })
-          .catch((error) => {
-            console.error(error);
-            dropBall();
+          // Fügen Sie das a-scene Element zum Container hinzu
+          document.getElementById('ar-container').appendChild(scene);
+
+          // Warten Sie, bis die Szene geladen ist
+          scene.addEventListener('loaded', () => {
+            startGame();
           });
-      } else if (typeof DeviceMotionEvent !== 'undefined') {
-        // Andere Geräte mit Bewegungssensoren
-        hasMotionSensor = true;
-        dropBall();
-      } else {
-        // Bewegungssensor nicht verfügbar
-        dropBall();
+        } catch (error) {
+          console.error('Fehler bei der Geräteeinrichtung:', error);
+        }
       }
 
-      if (hasMotionSensor) {
-        // Gerätbewegung erfassen
-        let lastAcc = { x: null, y: null, z: null };
-        window.addEventListener('devicemotion', (event) => {
-          const acc = event.accelerationIncludingGravity;
-          if (lastAcc.x !== null) {
-            const deltaX = acc.x - lastAcc.x;
-            const deltaY = acc.y - lastAcc.y;
-            const deltaZ = acc.z - lastAcc.z;
+      function startGame() {
+        let score = 0;
+        const ball = document.getElementById('ball');
+        const scoreboard = document.getElementById('scoreboard');
+        const camera = document.querySelector('a-camera-static');
 
-            const accChange = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+        let ballVelocity = new THREE.Vector3();
+        let isBallFlying = false;
+        let isBallMoving = false;
 
-            // Schwellenwert für Bewegung (anpassen je nach Empfindlichkeit)
-            if (accChange > 2) {
-              // Überprüfe, ob der Ball nahe genug ist
+        function dropBall() {
+          if (isBallMoving) return;
+
+          isBallFlying = false;
+          isBallMoving = true;
+
+          const startX = (Math.random() * 1.6 - 0.8).toFixed(2);
+          const startY = (Math.random() * 1 + 1.5).toFixed(2);
+          const startZ = -4;
+
+          ball.setAttribute('position', `${startX} ${startY} ${startZ}`);
+          ball.setAttribute('visible', 'true');
+          ballVelocity.set(0, 0, 0);
+          animateBall();
+        }
+
+        function animateBall() {
+          const speed = 0.02;
+
+          function moveBall() {
+            if (!isBallFlying) {
               const ballPos = new THREE.Vector3();
               ball.object3D.getWorldPosition(ballPos);
 
               const cameraPos = new THREE.Vector3();
               camera.object3D.getWorldPosition(cameraPos);
 
-              const distance = ballPos.distanceTo(cameraPos);
+              const direction = new THREE.Vector3();
+              direction.subVectors(cameraPos, ballPos).normalize().multiplyScalar(speed);
+              ball.object3D.position.add(direction);
 
-              if (distance < 1 && !isBallFlying) {
+              const distance = ballPos.distanceTo(cameraPos);
+              console.log('Ball distance:', distance);
+
+              if (distance < 0.5) {
                 handleCollision();
+                return;
+              }
+
+              if (ballPos.z < 0) {
+                requestAnimationFrame(moveBall);
+              } else {
+                resetBall();
+              }
+            } else {
+              const flySpeed = 0.05;
+              const flyDirection = new THREE.Vector3();
+              flyDirection.subVectors(ballPos, cameraPos).normalize().multiplyScalar(flySpeed);
+              ball.object3D.position.add(flyDirection);
+              ballVelocity.multiplyScalar(0.98);
+
+              const newDistance = ball.object3D.position.distanceTo(cameraPos);
+              if (newDistance > 5) {
+                resetBall();
+              } else {
+                requestAnimationFrame(moveBall);
               }
             }
           }
-          lastAcc = {
-            x: acc.x,
-            y: acc.y,
-            z: acc.z
-          };
-        });
-      } else {
-        // Falls keine Bewegungssensoren vorhanden sind (Desktop), Klick-Event hinzufügen
-        ball.addEventListener('click', () => {
-          // Behandeln als Verlust, wenn der Ball angeklickt wird
-          handleLoss();
-        });
+
+          moveBall();
+        }
+
+        function handleCollision() {
+          if (!isBallFlying) {
+            isBallFlying = true;
+            ballVelocity.set(
+              (Math.random() - 0.5) * 0.05,
+              0.1 + Math.random() * 0.05,
+              (Math.random() - 0.5) * 0.05
+            );
+            score += 1;
+            scoreboard.innerText = 'Punkte: ' + score;
+            console.log('Hit detected. Score:', score);
+
+            // Optional: Ball kurz rot leuchten lassen als visuelles Feedback
+            ball.setAttribute('color', '#FF0000');
+            setTimeout(() => {
+              ball.setAttribute('color', '#EF2D5E');
+            }, 200);
+
+            // Ball zurücksetzen nach kurzer Verzögerung
+            setTimeout(resetBall, 500);
+          }
+        }
+
+        function handleLoss() {
+          // Verstecke den Ball
+          ball.setAttribute('visible', 'false');
+
+          // Zeige eine Game Over Nachricht
+          scoreboard.innerText = 'Game Over! Punkte: ' + score;
+          console.log('Game Over. Score:', score);
+
+          // Optional: Spiel nach einiger Zeit zurücksetzen
+          setTimeout(resetGame, 3000);
+        }
+
+        function resetBall() {
+          ball.setAttribute('visible', 'false');
+          isBallMoving = false;
+          isBallFlying = false;
+          setTimeout(dropBall, 1000);
+        }
+
+        function resetGame() {
+          score = 0;
+          scoreboard.innerText = 'Punkte: 0';
+          dropBall();
+        }
+
+        // Bewegungserkennung nur auf mobilen Geräten
+        let hasMotionSensor = false;
+
+        if (
+          typeof DeviceMotionEvent !== 'undefined' &&
+          typeof DeviceMotionEvent.requestPermission === 'function'
+        ) {
+          // iOS 13+ Geräte
+          DeviceMotionEvent.requestPermission()
+            .then((response) => {
+              if (response === 'granted') {
+                hasMotionSensor = true;
+              }
+              dropBall();
+            })
+            .catch((error) => {
+              console.error(error);
+              dropBall();
+            });
+        } else if (typeof DeviceMotionEvent !== 'undefined') {
+          // Andere Geräte mit Bewegungssensoren
+          hasMotionSensor = true;
+          dropBall();
+        } else {
+          // Bewegungssensor nicht verfügbar
+          dropBall();
+        }
+
+        if (hasMotionSensor) {
+          // Gerätbewegung erfassen
+          let lastAcc = { x: null, y: null, z: null };
+          window.addEventListener('devicemotion', (event) => {
+            const acc = event.accelerationIncludingGravity;
+            if (lastAcc.x !== null) {
+              const deltaX = acc.x - lastAcc.x;
+              const deltaY = acc.y - lastAcc.y;
+              const deltaZ = acc.z - lastAcc.z;
+
+              const accChange = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+
+              // Schwellenwert für Bewegung (anpassen je nach Empfindlichkeit)
+              if (accChange > 2) {
+                // Überprüfe, ob der Ball nahe genug ist
+                const ballPos = new THREE.Vector3();
+                ball.object3D.getWorldPosition(ballPos);
+
+                const cameraPos = new THREE.Vector3();
+                camera.object3D.getWorldPosition(cameraPos);
+
+                const distance = ballPos.distanceTo(cameraPos);
+
+                if (distance < 1 && !isBallFlying) {
+                  handleCollision();
+                }
+              }
+            }
+            lastAcc = {
+              x: acc.x,
+              y: acc.y,
+              z: acc.z
+            };
+          });
+        } else {
+          // Falls keine Bewegungssensoren vorhanden sind (Desktop), Klick-Event hinzufügen
+          ball.addEventListener('click', () => {
+            // Behandeln als Verlust, wenn der Ball angeklickt wird
+            handleLoss();
+          });
+        }
       }
 
-      // Funktion zum Behandeln eines Verlustes
-      function handleLoss() {
-        // Verstecke den Ball
-        ball.setAttribute('visible', 'false');
-
-        // Zeige eine Game Over Nachricht
-        scoreboard.innerText = 'Game Over! Punkte: ' + score;
-
-        console.log('Game Over. Score:', score);
-
-        // Optional: Spiel nach einiger Zeit zurücksetzen
-        setTimeout(resetGame, 3000);
-      }
-
-      // Funktion zum Zurücksetzen des Spiels
-      function resetGame() {
-        score = 0;
-        scoreboard.innerText = 'Punkte: 0';
-        dropBall();
-      }
+      // Initialisieren der AR-Szene nach dem Laden der Seite
+      window.addEventListener('DOMContentLoaded', () => {
+        initARScene();
+      });
     </script>
   </body>
 </html>
-
 
