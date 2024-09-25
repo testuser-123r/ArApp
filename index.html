@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
   <head>
@@ -10,7 +11,7 @@
     <!-- A-Frame Library -->
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <!-- AR.js for A-Frame -->
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.0/aframe/build/aframe-ar.js"></script>
     <style>
       body {
         margin: 0;
@@ -23,6 +24,7 @@
         color: #fff;
         font-size: 24px;
         z-index: 1;
+        font-family: Arial, sans-serif;
       }
     </style>
   </head>
@@ -31,7 +33,7 @@
 
     <a-scene
       embedded
-      arjs="sourceType: webcam; debugUIEnabled: false;"
+      arjs="sourceType: webcam; debugUIEnabled: true;"
       vr-mode-ui="enabled: false"
     >
       <!-- Hiro-Marker -->
@@ -54,8 +56,7 @@
         position="0 1 0"
       ></a-light>
 
-      <!-- Camera -->
-      <a-entity camera></a-entity>
+      <!-- Entfernte die separate Kamera-Entität -->
     </a-scene>
 
     <script>
@@ -67,6 +68,7 @@
       let isBallFlying = false;
 
       function dropBall() {
+        console.log('Ball wird fallen gelassen');
         // Der Ball startet über dem Hiro-Marker
         ball.setAttribute('position', '0 0.5 0');
         ball.setAttribute('visible', 'true');
@@ -90,6 +92,7 @@
 
             if (ballPos.y < 0) {
               // Ball hat den Boden erreicht
+              console.log('Ball hat den Boden erreicht');
               resetBall();
             } else {
               requestAnimationFrame(moveBall);
@@ -100,6 +103,7 @@
             ballVelocity.multiplyScalar(0.98); // Verlangsamt den Ball
 
             if (ball.object3D.position.y > 5) {
+              console.log('Ball ist weggeflogen');
               resetBall();
             } else {
               requestAnimationFrame(moveBall);
@@ -110,6 +114,7 @@
       }
 
       function resetBall() {
+        console.log('Ball wird zurückgesetzt');
         ball.setAttribute('visible', 'false');
         setTimeout(dropBall, 1000);
       }
@@ -117,6 +122,10 @@
       window.addEventListener('load', () => {
         dropBall();
       });
+
+      // Optional: Event Listener für Treffer hinzufügen
+      // Zum Beispiel, wenn der Ball den Boden berührt, erhöhe die Punktzahl
+      // Dies erfordert zusätzliche Logik je nach Spielmechanik
     </script>
   </body>
 </html>
