@@ -65,10 +65,13 @@
       let isBallFlying = false;
 
       function dropBall() {
-        // Zufällige Position
-        const randomX = (Math.random() * 2 - 1).toFixed(2);
-        ball.setAttribute('position', `${randomX} 2 -5`);
-        ball.object3D.position.set(randomX, 2, -5);
+        // Zufällige Startposition (links oder rechts)
+        const startX = Math.random() < 0.5 ? -5 : 5;
+        const startY = Math.random() * 2 + 1; // Höhe zwischen 1 und 3
+        const startZ = -5;
+
+        ball.setAttribute('position', `${startX} ${startY} ${startZ}`);
+        ball.object3D.position.set(startX, startY, startZ);
         ball.setAttribute('visible', 'true');
         gameOver = false;
         isBallFlying = false;
@@ -77,23 +80,42 @@
       }
 
       function animateBall() {
-        const fallSpeed = 0.02;
+        const speed = 0.02;
 
-        function fall() {
+        // Richtung zum Spieler (Kamera) berechnen
+        const ballPos = new THREE.Vector3();
+        ball.object3D.getWorldPosition(ballPos);
+
+        const cameraPos = new THREE.Vector3();
+        camera.object3D.getWorldPosition(cameraPos);
+
+        const direction = new THREE.Vector3();
+        direction.subVectors(cameraPos, ballPos).normalize().multiplyScalar(speed);
+
+        function moveBall() {
           if (!gameOver) {
             if (!isBallFlying) {
-              ball.object3D.position.y -= fallSpeed;
+              ball.object3D.position.add(direction);
             } else {
-              // Ball bewegt sich nach oben
+              // Ball bewegt sich nach oben (wenn getroffen)
               ball.object3D.position.add(ballVelocity);
-              ballVelocity.multiplyScalar(0.98); // Verlangsamt den Ball über die Zeit
+              ballVelocity.multiplyScalar(0.98); // Verlangsamt den Ball
+            }
+
+            // Überprüfe, ob der Ball nahe genug ist
+            const currentBallPos = new THREE.Vector3();
+            ball.object3D.getWorldPosition(currentBallPos);
+
+            const distance = currentBallPos.distanceTo(cameraPos);
+
+            if (distance < 1 && !isBallFlying) {
+              handleCollision();
             }
 
             // Überprüfe, ob der Ball außerhalb des Sichtfelds ist
-            if (ball.object3D.position.y > -1 && ball.object3D.position.y < 5) {
-              requestAnimationFrame(fall);
+            if (currentBallPos.z < 1 && currentBallPos.y > -1 && currentBallPos.y < 5) {
+              requestAnimationFrame(moveBall);
             } else {
-              // Ball verpasst oder außer Sicht, starte neu
               if (!gameOver) {
                 gameOver = true;
                 setTimeout(dropBall, 1000);
@@ -101,7 +123,7 @@
             }
           }
         }
-        fall();
+        moveBall();
       }
 
       function handleCollision() {
@@ -175,4 +197,5 @@
     </script>
   </body>
 </html>
+
 
