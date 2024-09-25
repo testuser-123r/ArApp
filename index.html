@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
   <head>
@@ -57,7 +58,7 @@
     <a-scene
       embedded
       arjs="sourceType: webcam; debugUIEnabled: false;"
-      vr-mode-ui="enabled: false"
+      vr-mode-ui="enabled: false;"
     >
       <!-- Ball -->
       <a-sphere
@@ -93,6 +94,9 @@
       const scene = cameraEntity.sceneEl.object3D; // Drei.js Szene aus A-Frame
       const camera = cameraEntity.getObject3D('camera'); // Drei.js Kamera
 
+      // Definieren des Raycasters
+      const raycaster = new THREE.Raycaster();
+
       // Funktion zum Ballplatzieren
       function dropBall() {
         if (isBallMoving) return; // Verhindert mehrere gleichzeitig laufende Animationen
@@ -115,14 +119,15 @@
         const speed = 0.02;
 
         function moveBall() {
+          // Position des Balls und der Kamera abrufen
+          const ballPos = new THREE.Vector3();
+          ball.object3D.getWorldPosition(ballPos);
+
+          const cameraPos = new THREE.Vector3();
+          camera.getWorldPosition(cameraPos);
+
           if (!isBallFlying) {
             // Ball auf die Kamera zu bewegen
-            const ballPos = new THREE.Vector3();
-            ball.object3D.getWorldPosition(ballPos);
-
-            const cameraPos = new THREE.Vector3();
-            camera.getWorldPosition(cameraPos);
-
             const direction = new THREE.Vector3();
             direction.subVectors(cameraPos, ballPos).normalize().multiplyScalar(speed);
             ball.object3D.position.add(direction);
@@ -252,18 +257,22 @@
       async function start() {
         dropBall();
 
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        videoElement.srcObject = stream;
-        videoElement.play();
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          videoElement.srcObject = stream;
+          videoElement.play();
 
-        const cameraFeed = new Camera(videoElement, {
-          onFrame: async () => {
-            await hands.send({ image: videoElement });
-          },
-          width: 640,
-          height: 480,
-        });
-        cameraFeed.start();
+          const cameraFeed = new Camera(videoElement, {
+            onFrame: async () => {
+              await hands.send({ image: videoElement });
+            },
+            width: 640,
+            height: 480,
+          });
+          cameraFeed.start();
+        } catch (err) {
+          console.error('Fehler beim Zugriff auf die Kamera:', err);
+        }
       }
 
       // Starte die Anwendung
@@ -271,4 +280,3 @@
     </script>
   </body>
 </html>
-
