@@ -66,9 +66,9 @@
 
       function dropBall() {
         // Zufällige Startposition (links oder rechts)
-        const startX = Math.random() < 0.5 ? -5 : 5;
-        const startY = Math.random() * 2 + 1; // Höhe zwischen 1 und 3
-        const startZ = -5;
+        const startX = Math.random() < 0.5 ? -1.5 : 1.5; // Anpassung der Position
+        const startY = Math.random() * 1 + 1.5; // Höhe zwischen 1.5 und 2.5
+        const startZ = -3; // Näher zur Kamera
 
         ball.setAttribute('position', `${startX} ${startY} ${startZ}`);
         ball.object3D.position.set(startX, startY, startZ);
@@ -82,19 +82,18 @@
       function animateBall() {
         const speed = 0.02;
 
-        // Richtung zum Spieler (Kamera) berechnen
-        const ballPos = new THREE.Vector3();
-        ball.object3D.getWorldPosition(ballPos);
-
-        const cameraPos = new THREE.Vector3();
-        camera.object3D.getWorldPosition(cameraPos);
-
-        const direction = new THREE.Vector3();
-        direction.subVectors(cameraPos, ballPos).normalize().multiplyScalar(speed);
-
         function moveBall() {
           if (!gameOver) {
             if (!isBallFlying) {
+              // Bewege den Ball auf die Kamera zu
+              const direction = new THREE.Vector3();
+              const ballPos = new THREE.Vector3();
+              ball.object3D.getWorldPosition(ballPos);
+
+              const cameraPos = new THREE.Vector3();
+              camera.object3D.getWorldPosition(cameraPos);
+
+              direction.subVectors(cameraPos, ballPos).normalize().multiplyScalar(speed);
               ball.object3D.position.add(direction);
             } else {
               // Ball bewegt sich nach oben (wenn getroffen)
@@ -102,18 +101,21 @@
               ballVelocity.multiplyScalar(0.98); // Verlangsamt den Ball
             }
 
-            // Überprüfe, ob der Ball nahe genug ist
+            // Überprüfe die Entfernung zwischen Ball und Kamera
             const currentBallPos = new THREE.Vector3();
             ball.object3D.getWorldPosition(currentBallPos);
 
+            const cameraPos = new THREE.Vector3();
+            camera.object3D.getWorldPosition(cameraPos);
+
             const distance = currentBallPos.distanceTo(cameraPos);
 
-            if (distance < 1 && !isBallFlying) {
+            if (distance < 0.5 && !isBallFlying) {
               handleCollision();
             }
 
             // Überprüfe, ob der Ball außerhalb des Sichtfelds ist
-            if (currentBallPos.z < 1 && currentBallPos.y > -1 && currentBallPos.y < 5) {
+            if (currentBallPos.y > -1 && currentBallPos.y < 5) {
               requestAnimationFrame(moveBall);
             } else {
               if (!gameOver) {
