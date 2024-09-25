@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
   <head>
@@ -94,9 +93,6 @@
       const scene = cameraEntity.sceneEl.object3D; // Drei.js Szene aus A-Frame
       const camera = cameraEntity.getObject3D('camera'); // Drei.js Kamera
 
-      // Definieren des Raycasters
-      const raycaster = new THREE.Raycaster();
-
       // Funktion zum Ballplatzieren
       function dropBall() {
         if (isBallMoving) return; // Verhindert mehrere gleichzeitig laufende Animationen
@@ -152,7 +148,7 @@
             // Ball wurde getroffen und fliegt weg
             const flySpeed = 0.05;
             const flyDirection = new THREE.Vector3();
-            flyDirection.subVectors(ball.object3D.position, cameraPos).normalize().multiplyScalar(flySpeed);
+            flyDirection.subVectors(ballPos, cameraPos).normalize().multiplyScalar(flySpeed);
             ball.object3D.position.add(flyDirection);
 
             // Ball zurücksetzen, wenn er weit genug weggeflogen ist
@@ -175,6 +171,12 @@
           score += 1;
           scoreboard.innerText = 'Punkte: ' + score;
           console.log('Hit detected. Score:', score);
+
+          // Optional: Ball kurz rot leuchten lassen als visuelles Feedback
+          ball.setAttribute('color', '#FF0000');
+          setTimeout(() => {
+            ball.setAttribute('color', '#EF2D5E');
+          }, 200);
         }
       }
 
@@ -238,13 +240,19 @@
             const normalizedX = (indexFingerTip.x * 2 - 1);
             const normalizedY = -(indexFingerTip.y * 2 - 1); // Y-Achse umkehren
 
-            // Setze den Raycaster basierend auf der Handposition
-            raycaster.setFromCamera({ x: normalizedX, y: normalizedY }, camera);
+            // Berechne die Position der Hand in Weltkoordinaten
+            const handVector = new THREE.Vector3(normalizedX, normalizedY, -1).unproject(camera);
 
-            // Prüfe, ob der Ray den Ball trifft
-            const intersects = raycaster.intersectObject(ball.object3D, false);
+            // Berechne den Abstand zwischen Hand und Ball
+            const ballPos = new THREE.Vector3();
+            ball.object3D.getWorldPosition(ballPos);
 
-            if (intersects.length > 0) {
+            const distance = handVector.distanceTo(ballPos);
+
+            console.log('Hand distance to ball:', distance);
+
+            // Wenn die Hand nahe genug am Ball ist, Kollision auslösen
+            if (distance < 0.5 && !isBallFlying) { // Schwellenwert anpassen
               handleHit();
             }
           }
@@ -280,3 +288,4 @@
     </script>
   </body>
 </html>
+
