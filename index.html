@@ -61,47 +61,41 @@
       const scoreboard = document.getElementById('scoreboard');
       const camera = document.querySelector('a-camera-static');
 
+      let ballVelocity = new THREE.Vector3();
+      let isBallFlying = false;
+
       function dropBall() {
-        // Randomly choose left (-1), center (0), or right (1)
+        // Zufällige Position
         const randomX = (Math.random() * 2 - 1).toFixed(2);
         ball.setAttribute('position', `${randomX} 2 -5`);
         ball.object3D.position.set(randomX, 2, -5);
         ball.setAttribute('visible', 'true');
         gameOver = false;
+        isBallFlying = false;
+        ballVelocity.set(0, 0, 0);
         animateBall();
       }
 
       function animateBall() {
         const fallSpeed = 0.02;
+
         function fall() {
           if (!gameOver) {
-            ball.object3D.position.y -= fallSpeed;
-
-            // Calculate distance between ball and camera
-            const ballPos = new THREE.Vector3();
-            ball.object3D.getWorldPosition(ballPos);
-
-            const cameraPos = new THREE.Vector3();
-            camera.object3D.getWorldPosition(cameraPos);
-
-            const distance = ballPos.distanceTo(cameraPos);
-
-            // Check for "collision" when ball is close to camera (simulating hand proximity)
-            if (distance < 1) {
-              handleCollision();
-              return;
+            if (!isBallFlying) {
+              ball.object3D.position.y -= fallSpeed;
+            } else {
+              // Ball bewegt sich nach oben
+              ball.object3D.position.add(ballVelocity);
+              ballVelocity.multiplyScalar(0.98); // Verlangsamt den Ball über die Zeit
             }
 
-            // Check if ball has fallen below view
-            if (ball.object3D.position.y > -1) {
+            // Überprüfe, ob der Ball außerhalb des Sichtfelds ist
+            if (ball.object3D.position.y > -1 && ball.object3D.position.y < 5) {
               requestAnimationFrame(fall);
             } else {
-              // Ball missed, game over
+              // Ball verpasst oder außer Sicht, starte neu
               if (!gameOver) {
-                alert('Game Over!');
                 gameOver = true;
-                score = 0;
-                scoreboard.innerText = 'Punkte: ' + score;
                 setTimeout(dropBall, 1000);
               }
             }
@@ -112,19 +106,71 @@
 
       function handleCollision() {
         if (!gameOver) {
-          ball.setAttribute('visible', 'false');
+          isBallFlying = true;
+          // Setze eine zufällige Geschwindigkeit für den Ball
+          ballVelocity.set(
+            (Math.random() - 0.5) * 0.1,
+            0.1 + Math.random() * 0.1,
+            (Math.random() - 0.5) * 0.1
+          );
           score += 1;
           scoreboard.innerText = 'Punkte: ' + score;
-          gameOver = true;
-          setTimeout(dropBall, 500);
         }
       }
 
-      ball.addEventListener('click', handleCollision);
+      // Gerätbewegung erfassen
+      let lastAcc = { x: null, y: null, z: null };
+      window.addEventListener('devicemotion', (event) => {
+        const acc = event.accelerationIncludingGravity;
+        if (lastAcc.x !== null) {
+          const deltaX = acc.x - lastAcc.x;
+          const deltaY = acc.y - lastAcc.y;
+          const deltaZ = acc.z - lastAcc.z;
 
-      // Start the game
+          const accChange = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+
+          // Schwellenwert für Bewegung (anpassen je nach Empfindlichkeit)
+          if (accChange > 3) {
+            // Überprüfe, ob der Ball nahe genug ist
+            const ballPos = new THREE.Vector3();
+            ball.object3D.getWorldPosition(ballPos);
+
+            const cameraPos = new THREE.Vector3();
+            camera.object3D.getWorldPosition(cameraPos);
+
+            const distance = ballPos.distanceTo(cameraPos);
+
+            if (distance < 1.5 && !isBallFlying) {
+              handleCollision();
+            }
+          }
+        }
+        lastAcc = {
+          x: acc.x,
+          y: acc.y,
+          z: acc.z
+        };
+      });
+
+      // Start des Spiels
       window.addEventListener('load', () => {
-        dropBall();
+        // Für iOS muss die Erlaubnis für Bewegungssensoren eingeholt werden
+        if (
+          typeof DeviceMotionEvent !== 'undefined' &&
+          typeof DeviceMotionEvent.requestPermission === 'function'
+        ) {
+          DeviceMotionEvent.requestPermission()
+            .then((response) => {
+              if (response === 'granted') {
+                dropBall();
+              } else {
+                alert('Bewegungssensoren wurden nicht erlaubt.');
+              }
+            })
+            .catch(console.error);
+        } else {
+          dropBall();
+        }
       });
     </script>
   </body>
