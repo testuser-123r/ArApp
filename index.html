@@ -36,7 +36,7 @@
         height: 240px;
         border: 2px solid red; /* Sichtbarmachung für Debugging */
         z-index: 2;
-        display: none; /* Standardmäßig verstecken */
+        display: block; /* Temporär sichtbar für Debugging */
       }
       #output_canvas {
         position: absolute;
@@ -45,7 +45,7 @@
         width: 320px;
         height: 240px;
         z-index: 3;
-        display: none; /* Standardmäßig verstecken */
+        display: block; /* Temporär sichtbar für Debugging */
       }
     </style>
   </head>
@@ -84,11 +84,14 @@
     </a-scene>
 
     <script>
+      // Registrierung der benutzerdefinierten A-Frame-Komponente 'ball-controller'
       AFRAME.registerComponent('ball-controller', {
         schema: {
-          speed: { type: 'number', default: 0.02 }
+          speed: { type: 'number', default: 0.02 },
+          flySpeedMultiplier: { type: 'number', default: 2 }
         },
         init: function () {
+          // Initialisieren von Variablen
           this.score = 0;
           this.isFlying = false;
           this.isMoving = false;
@@ -101,8 +104,8 @@
           // Mediapipe Hand Position
           this.handPosition = null;
           
-          // Bind the hit handler
-          this.handleHit = this.handleHit.bind(this);
+          // Initialisiere Mediapipe Hands
+          this.initializeMediapipe();
         },
         tick: function (time, delta) {
           if (!this.isMoving) return;
@@ -117,10 +120,10 @@
             const direction = new THREE.Vector3();
             direction.subVectors(cameraPos, ballPos).normalize().multiplyScalar(this.data.speed * (delta / 16));
             ballPos.add(direction);
-            this.el.setAttribute('position', ballPos);
+            this.el.setAttribute('position', `${ballPos.x} ${ballPos.y} ${ballPos.z}`);
 
             const distance = ballPos.distanceTo(cameraPos);
-            console.log('Ball distance:', distance);
+            // console.log('Ball distance:', distance);
 
             if (distance < 0.5) {
               this.handleMiss();
@@ -132,9 +135,9 @@
           } else {
             // Bewegung des Balls weg von der Kamera
             const direction = new THREE.Vector3();
-            direction.subVectors(ballPos, cameraPos).normalize().multiplyScalar(this.data.speed * 2 * (delta / 16));
+            direction.subVectors(ballPos, cameraPos).normalize().multiplyScalar(this.data.speed * this.data.flySpeedMultiplier * (delta / 16));
             ballPos.add(direction);
-            this.el.setAttribute('position', ballPos);
+            this.el.setAttribute('position', `${ballPos.x} ${ballPos.y} ${ballPos.z}`);
 
             const newDistance = ballPos.distanceTo(cameraPos);
             if (newDistance > 5) {
@@ -181,109 +184,119 @@
           setTimeout(() => {
             this.dropBall();
           }, 1000);
-        }
-      });
+        },
+        initializeMediapipe: function () {
+          const self = this;
+          const videoElement = document.getElementById('input_video');
+          const canvasElement = document.getElementById('output_canvas');
+          const canvasCtx = canvasElement.getContext('2d');
 
-      let hands;
-      let videoElement = document.getElementById('input_video');
-      let canvasElement = document.getElementById('output_canvas');
-      let canvasCtx = canvasElement.getContext('2d');
-      let ballController;
+          // Initialisiere Mediapipe Hands
+          this.hands = new Hands({
+            locateFile: (file) => {
+              return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+            },
+          });
 
-      // Initialisiere Mediapipe Hands
-      function initializeMediapipe() {
-        hands = new Hands({
-          locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-          },
-        });
+          this.hands.setOptions({
+            maxNumHands: 1,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.5,
+          });
 
-        hands.setOptions({
-          maxNumHands: 1,
-          minDetectionConfidence: 0.7,
-          minTrackingConfidence: 0.5,
-        });
+          this.hands.onResults(function(results) {
+            self.onResults(results, canvasCtx, canvasElement);
+          });
 
-        hands.onResults(onResults);
-      }
+          // Starte die Kamera
+          this.startCamera(videoElement, this.hands);
+        },
+        onResults: function(results, canvasCtx, canvasElement) {
+          // Zeichne das Video und die Handlandmarks auf den Canvas für Debugging
+          canvasCtx.save();
+          canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+          canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
-      // Handergebnisse verarbeiten
-      function onResults(results) {
-        canvasCtx.save();
-        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+          if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+            for (const landmarks of results.multiHandLandmarks) {
+              drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
+              drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', lineWidth: 1 });
 
-        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-          for (const landmarks of results.multiHandLandmarks) {
-            drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
-            drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', lineWidth: 1 });
+              // Fingerspitze des Zeigefingers (Landmark 8)
+              const indexFingerTip = landmarks[8];
+              const handX = indexFingerTip.x * canvasElement.width;
+              const handY = indexFingerTip.y * canvasElement.height;
 
-            // Fingerspitze des Zeigefingers (Landmark 8)
-            const indexFingerTip = landmarks[8];
-            const handX = indexFingerTip.x * canvasElement.width;
-            const handY = indexFingerTip.y * canvasElement.height;
+              // Kreis zur Visualisierung
+              canvasCtx.beginPath();
+              canvasCtx.arc(handX, handY, 10, 0, 2 * Math.PI);
+              canvasCtx.fillStyle = 'blue';
+              canvasCtx.fill();
 
-            // Kreis zur Visualisierung
-            canvasCtx.beginPath();
-            canvasCtx.arc(handX, handY, 10, 0, 2 * Math.PI);
-            canvasCtx.fillStyle = 'blue';
-            canvasCtx.fill();
-
-            // Kollisionsdetektion
-            if (ballController) {
+              // Kollisionsdetektion
               const ballPos = new THREE.Vector3();
-              ballController.el.object3D.getWorldPosition(ballPos);
+              this.el.object3D.getWorldPosition(ballPos);
+              const cameraPos = new THREE.Vector3();
+              this.camera.getWorldPosition(cameraPos);
 
-              // Projektieren der Ballposition auf den Bildschirm
-              const vector = ballPos.clone().project(ballController.camera);
-              const screenX = (vector.x + 1) / 2 * canvasElement.width;
-              const screenY = (-vector.y + 1) / 2 * canvasElement.height;
+              // Berechne die 3D-Distanz zwischen Hand und Ball
+              // Hier müssen wir die Handposition in 3D konvertieren
+              // Da Mediapipe nur 2D-Daten liefert, verwenden wir die Handposition auf der Ebene der Kamera
+              const normalizedHandX = (indexFingerTip.x - 0.5) * 2; // Bereich von -1 bis 1
+              const normalizedHandY = -(indexFingerTip.y - 0.5) * 2; // Bereich von -1 bis 1
 
-              // Distanz zwischen Hand und Ball in 2D
-              const distance = Math.hypot(handX - screenX, handY - screenY);
-              console.log('Hand distance to ball (2D):', distance);
+              // Setze eine feste Tiefe für die Handposition (z=0)
+              const handDepth = 0;
+              const handPos = new THREE.Vector3(normalizedHandX, normalizedHandY, handDepth);
+              
+              // Transformiere die Handposition von Bildschirmkoordinaten zu Weltkoordinaten
+              const vector = handPos.clone().unproject(this.camera);
+              // Berechne die Richtung der Kamera
+              const direction = vector.sub(this.camera.position).normalize();
+              const distance = 5; // Annahme: Hand ist 5 Einheiten vor der Kamera
+              const handWorldPos = this.camera.position.clone().add(direction.multiplyScalar(distance));
 
-              // Kollision überprüfen
-              if (distance < 50) { // Schwellenwert anpassen
-                ballController.handleHit();
+              // Berechne die Distanz zwischen Hand und Ball
+              const distance3D = ballPos.distanceTo(handWorldPos);
+              // console.log('Hand distance to ball (3D):', distance3D);
+
+              // Wenn die Distanz kleiner als ein Schwellenwert ist, löse einen Treffer aus
+              if (distance3D < 0.5) { // Schwellenwert anpassen
+                this.handleHit();
               }
             }
           }
+
+          canvasCtx.restore();
+        },
+        startCamera: async function(videoElement, hands) {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              video: {
+                facingMode: 'user',
+              },
+              audio: false,
+            });
+            videoElement.srcObject = stream;
+            videoElement.play();
+
+            const camera = new Camera(videoElement, {
+              onFrame: async () => {
+                await hands.send({ image: videoElement });
+              },
+              width: 640,
+              height: 480,
+            });
+            camera.start();
+          } catch (err) {
+            console.error('Fehler beim Zugriff auf die Kamera:', err);
+          }
         }
-
-        canvasCtx.restore();
-      }
-
-      // Starte die Kamera und Mediapipe
-      async function start() {
-        initializeMediapipe();
-        ballController = document.querySelector('#ball').components['ball-controller'];
-
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: 'user',
-            },
-          });
-          videoElement.srcObject = stream;
-          videoElement.play();
-
-          const camera = new Camera(videoElement, {
-            onFrame: async () => {
-              await hands.send({ image: videoElement });
-            },
-            width: 640,
-            height: 480,
-          });
-          camera.start();
-        } catch (err) {
-          console.error('Fehler beim Zugriff auf die Kamera:', err);
-        }
-      }
+      });
 
       // Starte die Anwendung nach dem Laden der Seite
       window.addEventListener('DOMContentLoaded', () => {
-        start();
+        // Nichts zu tun, da die Komponente sich selbst initialisiert
       });
     </script>
   </body>
