@@ -1,10 +1,8 @@
-
-
 <!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Falling Ball Game Optimized</title>
+    <title>Falling Ball AR Game</title>
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no"
@@ -29,32 +27,25 @@
         color: #fff;
         font-size: 24px;
         z-index: 1;
+        font-family: Arial, sans-serif;
       }
-      #input_video {
+      /* Optional: Sichtbarmachung der Debugging-Elemente */
+      #input_video, #output_canvas {
         position: absolute;
-        top: 0;
-        left: 0;
-        width: 320px;
-        height: 240px;
-        border: 2px solid red; /* Sichtbarmachung für Debugging */
+        top: 10px;
+        right: 10px;
+        width: 160px;
+        height: 120px;
+        border: 2px solid red;
         z-index: 2;
-        display: none; /* Standardmäßig verstecken */
-      }
-      #output_canvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 320px;
-        height: 240px;
-        z-index: 3;
-        display: none; /* Standardmäßig verstecken */
+        display: none; /* Ändern Sie dies zu 'block' für Debugging */
       }
     </style>
   </head>
   <body>
     <div id="scoreboard">Punkte: 0</div>
     <!-- Videoelement für Mediapipe Hands -->
-    <video id="input_video" autoplay></video>
+    <video id="input_video" autoplay playsinline></video>
     <!-- Canvas zur Anzeige der Handlandmarks (für Debugging) -->
     <canvas id="output_canvas"></canvas>
 
@@ -109,7 +100,7 @@
         const startY = (Math.random() * 1 + 1.5).toFixed(2); // Höhe zwischen 1.5 und 2.5
         const startZ = -4; // Etwas weiter von der Kamera entfernt
 
-        ball.setAttribute('position', ${startX} ${startY} ${startZ});
+        ball.setAttribute('position', `${startX} ${startY} ${startZ}`);
         ball.setAttribute('visible', 'true');
         ball.setAttribute('color', '#EF2D5E'); // Reset Farbe
         isBallFlying = false;
@@ -155,6 +146,7 @@
             const flyDirection = new THREE.Vector3();
             flyDirection.subVectors(ballPos, cameraPos).normalize().multiplyScalar(flySpeed);
             ball.object3D.position.add(flyDirection);
+            flyDirection.multiplyScalar(0.98); // Verlangsamt den Ball
 
             // Ball zurücksetzen, wenn er weit genug weggeflogen ist
             const newDistance = ball.object3D.position.distanceTo(cameraPos);
@@ -188,20 +180,6 @@
         }
       }
 
-      // Funktion zum Behandeln eines verpassten Balls
-      function handleMiss() {
-        // Ball erreicht die Kamera ohne getroffen zu werden
-        resetBall();
-      }
-
-      // Funktion zum Zurücksetzen des Balls
-      function resetBall() {
-        ball.setAttribute('visible', 'false');
-        isBallMoving = false;
-        isBallFlying = false;
-        setTimeout(dropBall, 1000);
-      }
-
       // Funktion zum Behandeln eines Verlustes
       function handleLoss() {
         // Verstecke den Ball
@@ -213,6 +191,14 @@
 
         // Optional: Spiel nach einiger Zeit zurücksetzen
         setTimeout(resetGame, 3000);
+      }
+
+      // Funktion zum Zurücksetzen des Balls
+      function resetBall() {
+        ball.setAttribute('visible', 'false');
+        isBallMoving = false;
+        isBallFlying = false;
+        setTimeout(dropBall, 1000);
       }
 
       // Funktion zum Zurücksetzen des Spiels
@@ -230,7 +216,7 @@
       // Initialisiere Mediapipe Hands
       const hands = new Hands({
         locateFile: (file) => {
-          return https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file};
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
         },
       });
 
@@ -298,6 +284,7 @@
             video: {
               facingMode: 'user', // Frontkamera anfordern
             },
+            audio: false
           });
           videoElement.srcObject = stream;
           videoElement.play();
@@ -327,6 +314,15 @@
       window.addEventListener('DOMContentLoaded', () => {
         start();
       });
+
+      // Falls keine Bewegungssensoren vorhanden sind (Desktop), Klick-Event hinzufügen
+      window.addEventListener('load', () => {
+        if (!('DeviceMotionEvent' in window)) {
+          ball.addEventListener('click', () => {
+            handleLoss();
+          });
+        }
+      });
     </script>
   </body>
-</html> Die App funktioniert leider immernoch nicht, der Ball fällt nicht und reagiert auf bewegung nicht. Ich will eine methode die auch wirklich funktioniert.
+</html>
