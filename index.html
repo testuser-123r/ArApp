@@ -3,10 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <title>Falling Ball Game mit Hiro Marker</title>
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no" />
     <!-- A-Frame Bibliothek -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <!-- AR.js für A-Frame -->
@@ -35,18 +32,21 @@
       arjs="sourceType: webcam; debugUIEnabled: true;"
       vr-mode-ui="enabled: false"
     >
-      <!-- Hiro-Marker -->
-      <a-marker preset="hiro">
-        <!-- Ball -->
-        <a-sphere
-          id="ball"
-          position="0 0.5 0"
-          radius="0.2"
-          color="#EF2D5E"
-          shadow
-          ball-animator
-        ></a-sphere>
+      <!-- Marker für Erkennung -->
+      <a-marker preset="hiro" id="marker">
+        <!-- Optional: Visualisierung des Markers -->
+        <a-box position="0 0.5 0" material="color: blue; opacity: 0.5;"></a-box>
       </a-marker>
+
+      <!-- Ball unabhängig vom Marker -->
+      <a-sphere
+        id="ball"
+        position="0 0.5 -0.5"
+        radius="0.2"
+        color="#EF2D5E"
+        shadow
+        ball-animator
+      ></a-sphere>
 
       <!-- Lichtquellen -->
       <a-light type="ambient" color="#888"></a-light>
@@ -54,22 +54,23 @@
     </a-scene>
 
     <script>
+      // Registrierung der Komponente für die Ball-Animation
       AFRAME.registerComponent('ball-animator', {
         init: function () {
           this.score = 0;
           this.scoreboard = document.getElementById('scoreboard');
           this.ball = this.el;
-          this.ballVelocity = new THREE.Vector3(0, -0.02, 0);
+          this.ballVelocity = new THREE.Vector3(0, -0.05, 0); // Schnellere Fallgeschwindigkeit
           this.isBallFlying = true;
           this.resetBall();
         },
 
         resetBall: function () {
           console.log('Ball wird zurückgesetzt');
-          // Setze den Ball über dem Marker
-          this.ball.object3D.position.set(0, 0.5, 0);
+          // Setze den Ball etwas vor der Kamera, um ihn sichtbar zu machen
+          this.ball.object3D.position.set(0, 0.5, -0.5);
           this.ball.setAttribute('visible', 'true');
-          this.ballVelocity.set(0, -0.02, 0); // Anfangsgeschwindigkeit nach unten
+          this.ballVelocity.set(0, -0.05, 0); // Anfangsgeschwindigkeit nach unten
           this.isBallFlying = true;
         },
 
@@ -80,17 +81,21 @@
             // Simuliere leichte Gravitation
             this.ballVelocity.y -= 0.0005;
 
+            // Logge die Position des Balls zur Fehlersuche
+            console.log(`Ball Position: x=${this.ball.object3D.position.x.toFixed(2)}, y=${this.ball.object3D.position.y.toFixed(2)}, z=${this.ball.object3D.position.z.toFixed(2)}`);
+
             // Überprüfe, ob der Ball den Boden erreicht hat (y < 0)
             if (this.ball.object3D.position.y < 0) {
               console.log('Ball hat den Boden erreicht');
               this.score += 1;
               this.updateScoreboard();
               this.resetBall();
+              return; // Verhindere weitere Kollisionen beim Zurücksetzen
             }
 
             // Überprüfe auf Kollision mit dem Marker
-            const marker = document.querySelector('a-marker');
-            if (marker) {
+            const marker = document.getElementById('marker');
+            if (marker && marker.object3D.visible) {
               const markerPos = new THREE.Vector3();
               marker.object3D.getWorldPosition(markerPos);
 
@@ -98,6 +103,8 @@
               this.ball.object3D.getWorldPosition(ballPos);
 
               const distance = markerPos.distanceTo(ballPos);
+              console.log(`Distance between marker and ball: ${distance.toFixed(2)}`);
+
               // Definiere eine Schwelle für die Kollision
               if (distance < 0.3) { // Anpassbar je nach Bedarf
                 console.log('Ball wurde getroffen!');
@@ -105,7 +112,7 @@
                 this.updateScoreboard();
                 this.pulseBall(); // Visueller Effekt
                 // Ändere die Richtung des Balles
-                this.ballVelocity.y = 0.02; // Ball bewegt sich nach oben
+                this.ballVelocity.y = 0.05; // Ball bewegt sich nach oben
                 this.isBallFlying = false;
               }
             }
@@ -114,7 +121,8 @@
             this.ball.object3D.position.add(this.ballVelocity);
             // Verlangsamen der Aufwärtsbewegung
             this.ballVelocity.multiplyScalar(0.98);
-            if (this.ball.object3D.position.y > 1) {
+            console.log(`Ball bewegt sich nach oben: y=${this.ball.object3D.position.y.toFixed(2)}`);
+            if (this.ball.object3D.position.y > 0.5) {
               console.log('Ball ist weggeflogen');
               this.resetBall();
             }
@@ -137,5 +145,6 @@
     </script>
   </body>
 </html>
+
 
 
