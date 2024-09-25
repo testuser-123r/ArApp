@@ -11,6 +11,10 @@
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <!-- AR.js for A-Frame -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+    <!-- Mediapipe Hands -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <style>
       body {
         margin: 0;
@@ -24,10 +28,34 @@
         font-size: 24px;
         z-index: 1;
       }
+      #input_video {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 320px;
+        height: 240px;
+        border: 2px solid red; /* Sichtbarmachung für Debugging */
+        z-index: 2;
+        display: none; /* Standardmäßig verstecken */
+      }
+      #output_canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 320px;
+        height: 240px;
+        z-index: 3;
+        display: none; /* Standardmäßig verstecken */
+      }
     </style>
   </head>
   <body>
     <div id="scoreboard">Punkte: 0</div>
+    <!-- Videoelement für Mediapipe Hands -->
+    <video id="input_video" autoplay></video>
+    <!-- Canvas zur Anzeige der Handlandmarks (für Debugging) -->
+    <canvas id="output_canvas"></canvas>
+
     <a-scene
       embedded
       arjs="sourceType: webcam; facingMode: user; debugUIEnabled: false;"
@@ -58,11 +86,14 @@
       let score = 0;
       const ball = document.getElementById('ball');
       const scoreboard = document.getElementById('scoreboard');
-      const camera = document.querySelector('a-camera');
+      const cameraEntity = document.querySelector('a-camera');
 
-      let ballVelocity = new THREE.Vector3();
-      let isBallFlying = false;
       let isBallMoving = false;
+      let isBallFlying = false;
+
+      // Drei.js Komponenten
+      const scene = cameraEntity.sceneEl.object3D; // Drei.js Szene aus A-Frame
+      const camera = cameraEntity.getObject3D('camera'); // Drei.js Kamera
 
       // Funktion zum Ballplatzieren
       function dropBall() {
@@ -78,7 +109,8 @@
 
         ball.setAttribute('position', `${startX} ${startY} ${startZ}`);
         ball.setAttribute('visible', 'true');
-        ballVelocity.set(0, 0, 0);
+        ball.setAttribute('color', '#EF2D5E'); // Reset Farbe
+        isBallFlying = false;
         animateBall();
       }
 
@@ -93,7 +125,7 @@
             ball.object3D.getWorldPosition(ballPos);
 
             const cameraPos = new THREE.Vector3();
-            camera.object3D.getWorldPosition(cameraPos);
+            camera.getWorldPosition(cameraPos);
 
             const direction = new THREE.Vector3();
             direction.subVectors(cameraPos, ballPos).normalize().multiplyScalar(speed);
@@ -104,7 +136,7 @@
             console.log('Ball distance:', distance);
 
             if (distance < 0.5) {
-              handleCollision();
+              handleMiss();
               return; // Stoppt die Bewegung
             }
 
@@ -121,9 +153,8 @@
             const flyDirection = new THREE.Vector3();
             flyDirection.subVectors(ballPos, cameraPos).normalize().multiplyScalar(flySpeed);
             ball.object3D.position.add(flyDirection);
-            ballVelocity.multiplyScalar(0.98); // Verlangsamt den Ball
 
-            // Wenn der Ball weit genug weggeflogen ist, zurücksetzen
+            // Ball zurücksetzen, wenn er weit genug weggeflogen ist
             const newDistance = ball.object3D.position.distanceTo(cameraPos);
             if (newDistance > 5) {
               resetBall();
@@ -137,20 +168,14 @@
       }
 
       // Funktion zum Behandeln eines Treffers
-      function handleCollision() {
+      function handleHit() {
         if (!isBallFlying) {
           isBallFlying = true;
-          // Setze eine zufällige Geschwindigkeit für den Ball
-          ballVelocity.set(
-            (Math.random() - 0.5) * 0.05,
-            0.1 + Math.random() * 0.05,
-            (Math.random() - 0.5) * 0.05
-          );
           score += 1;
           scoreboard.innerText = 'Punkte: ' + score;
           console.log('Hit detected. Score:', score);
 
-          // Optional: Ball kurz rot leuchten lassen als visuelles Feedback
+          // Ball kurz rot leuchten lassen als visuelles Feedback
           ball.setAttribute('color', '#FF0000');
           setTimeout(() => {
             ball.setAttribute('color', '#EF2D5E');
@@ -159,6 +184,20 @@
           // Ball zurücksetzen nach kurzer Verzögerung
           setTimeout(resetBall, 500);
         }
+      }
+
+      // Funktion zum Behandeln eines verpassten Balls
+      function handleMiss() {
+        // Ball erreicht die Kamera ohne getroffen zu werden
+        resetBall();
+      }
+
+      // Funktion zum Zurücksetzen des Balls
+      function resetBall() {
+        ball.setAttribute('visible', 'false');
+        isBallMoving = false;
+        isBallFlying = false;
+        setTimeout(dropBall, 1000);
       }
 
       // Funktion zum Behandeln eines Verlustes
@@ -174,14 +213,6 @@
         setTimeout(resetGame, 3000);
       }
 
-      // Funktion zum Zurücksetzen des Balls
-      function resetBall() {
-        ball.setAttribute('visible', 'false');
-        isBallMoving = false;
-        isBallFlying = false;
-        setTimeout(dropBall, 1000);
-      }
-
       // Funktion zum Zurücksetzen des Spiels
       function resetGame() {
         score = 0;
@@ -189,83 +220,112 @@
         dropBall();
       }
 
-      // Bewegungserkennung nur auf mobilen Geräten
-      let hasMotionSensor = false;
+      // Mediapipe Hands Integration
+      const videoElement = document.getElementById('input_video');
+      const canvasElement = document.getElementById('output_canvas');
+      const canvasCtx = canvasElement.getContext('2d');
 
-      if (
-        typeof DeviceMotionEvent !== 'undefined' &&
-        typeof DeviceMotionEvent.requestPermission === 'function'
-      ) {
-        // iOS 13+ Geräte
-        DeviceMotionEvent.requestPermission()
-          .then((response) => {
-            if (response === 'granted') {
-              hasMotionSensor = true;
-            }
-            dropBall();
-          })
-          .catch((error) => {
-            console.error(error);
-            dropBall();
-          });
-      } else if (typeof DeviceMotionEvent !== 'undefined') {
-        // Andere Geräte mit Bewegungssensoren
-        hasMotionSensor = true;
-        dropBall();
-      } else {
-        // Bewegungssensor nicht verfügbar
-        dropBall();
-      }
+      // Initialisiere Mediapipe Hands
+      const hands = new Hands({
+        locateFile: (file) => {
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        },
+      });
 
-      if (hasMotionSensor) {
-        // Gerätbewegung erfassen
-        let lastAcc = { x: null, y: null, z: null };
-        window.addEventListener('devicemotion', (event) => {
-          const acc = event.accelerationIncludingGravity;
-          if (lastAcc.x !== null) {
-            const deltaX = acc.x - lastAcc.x;
-            const deltaY = acc.y - lastAcc.y;
-            const deltaZ = acc.z - lastAcc.z;
+      hands.setOptions({
+        maxNumHands: 1,
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.5,
+      });
 
-            const accChange = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+      hands.onResults(onResults);
 
-            // Schwellenwert für Bewegung (anpassen je nach Empfindlichkeit)
-            if (accChange > 2) {
-              // Überprüfe, ob der Ball nahe genug ist
-              const ballPos = new THREE.Vector3();
-              ball.object3D.getWorldPosition(ballPos);
+      function onResults(results) {
+        // Zeichne das Video und die Handlandmarks auf den Canvas für Debugging
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
-              const cameraPos = new THREE.Vector3();
-              camera.object3D.getWorldPosition(cameraPos);
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+          for (const landmarks of results.multiHandLandmarks) {
+            drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
+            drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', lineWidth: 1 });
 
-              const distance = ballPos.distanceTo(cameraPos);
+            // Position der Fingerspitze des Zeigefingers erhalten (Landmark 8)
+            const indexFingerTip = landmarks[8];
+            const handX = indexFingerTip.x * canvasElement.width;
+            const handY = indexFingerTip.y * canvasElement.height;
 
-              if (distance < 1 && !isBallFlying) {
-                handleCollision();
-              }
+            // Zeichne einen Kreis an der Fingerspitze für Visualisierung
+            canvasCtx.beginPath();
+            canvasCtx.arc(handX, handY, 10, 0, 2 * Math.PI);
+            canvasCtx.fillStyle = 'blue';
+            canvasCtx.fill();
+
+            // Berechne die Position des Balls im 2D-Bildraum
+            const ballPos = new THREE.Vector3();
+            ball.object3D.getWorldPosition(ballPos);
+
+            // Projektieren der Ballposition auf den Bildschirm
+            const vector = ballPos.clone().project(camera);
+            const screenX = (vector.x + 1) / 2 * canvasElement.width;
+            const screenY = (-vector.y + 1) / 2 * canvasElement.height;
+
+            // Berechne die Distanz zwischen der Hand und dem Ball in 2D
+            const distance = Math.hypot(handX - screenX, handY - screenY);
+            console.log('Hand distance to ball (2D):', distance);
+
+            // Wenn die Hand nahe genug am Ball ist, Kollision auslösen
+            if (distance < 50 && !isBallFlying) { // Schwellenwert anpassen
+              handleHit();
             }
           }
-          lastAcc = {
-            x: acc.x,
-            y: acc.y,
-            z: acc.z
-          };
-        });
-      } else {
-        // Falls keine Bewegungssensoren vorhanden sind (Desktop), Klick-Event hinzufügen
-        ball.addEventListener('click', () => {
-          // Behandeln als Verlust, wenn der Ball angeklickt wird
-          handleLoss();
-        });
+        }
+
+        canvasCtx.restore();
       }
 
-      // Sicherstellen, dass der Ball anklickbar ist
+      // Starte die Kamera und das Spiel
+      async function start() {
+        // Starten Sie die Ballplatzierung
+        dropBall();
+
+        try {
+          // Zugriff auf die Frontkamera
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: 'user', // Frontkamera anfordern
+            },
+          });
+          videoElement.srcObject = stream;
+          videoElement.play();
+
+          const cameraFeed = new Camera(videoElement, {
+            onFrame: async () => {
+              await hands.send({ image: videoElement });
+            },
+            width: 640,
+            height: 480,
+          });
+          cameraFeed.start();
+        } catch (err) {
+          console.error('Fehler beim Zugriff auf die Kamera:', err);
+        }
+      }
+
+      // Sicherstellen, dass der Ball anklickbar ist (für Desktop)
       ball.setAttribute('class', 'clickable');
       ball.setAttribute('cursor', 'rayOrigin: mouse');
 
       // Fügen Sie eine Cursor-Komponente hinzu, um das Klicken zu erleichtern
-      const scene = document.querySelector('a-scene');
-      scene.setAttribute('cursor', 'fuse: false; rayOrigin: mouse');
+      const sceneElement = document.querySelector('a-scene');
+      sceneElement.setAttribute('cursor', 'fuse: false; rayOrigin: mouse');
+
+      // Starte die Anwendung nach dem Laden der Seite
+      window.addEventListener('DOMContentLoaded', () => {
+        start();
+      });
     </script>
   </body>
 </html>
+
