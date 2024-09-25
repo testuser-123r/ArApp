@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Falling Ball Game with Focused Motion Detection</title>
+    <title>Falling Ball Game with Hiro Marker</title>
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no"
@@ -24,29 +24,27 @@
         font-size: 24px;
         z-index: 1;
       }
-      #videoElement {
-        display: none;
-      }
     </style>
   </head>
   <body>
     <div id="scoreboard">Punkte: 0</div>
-    <!-- Videoelement für die Bewegungserkennung -->
-    <video id="videoElement" autoplay></video>
 
     <a-scene
       embedded
       arjs="sourceType: webcam; debugUIEnabled: false;"
       vr-mode-ui="enabled: false"
     >
-      <!-- Ball -->
-      <a-sphere
-        id="ball"
-        position="0 2 -5"
-        radius="0.2"
-        color="#EF2D5E"
-        shadow
-      ></a-sphere>
+      <!-- Hiro-Marker -->
+      <a-marker preset="hiro">
+        <!-- Ball -->
+        <a-sphere
+          id="ball"
+          position="0 0.5 0"
+          radius="0.2"
+          color="#EF2D5E"
+          shadow
+        ></a-sphere>
+      </a-marker>
 
       <!-- Light Sources -->
       <a-light type="ambient" color="#888"></a-light>
@@ -57,25 +55,20 @@
       ></a-light>
 
       <!-- Camera -->
-      <a-camera-static></a-camera-static>
+      <a-entity camera></a-entity>
     </a-scene>
 
     <script>
       let score = 0;
       const ball = document.getElementById('ball');
       const scoreboard = document.getElementById('scoreboard');
-      const camera = document.querySelector('a-camera-static');
 
       let ballVelocity = new THREE.Vector3();
       let isBallFlying = false;
 
       function dropBall() {
-        // Zufällige Startposition innerhalb eines kleineren Bereichs
-        const startX = (Math.random() * 1.6 - 0.8).toFixed(2); // Zwischen -0.8 und 0.8
-        const startY = (Math.random() * 1 + 1.5).toFixed(2); // Höhe zwischen 1.5 und 2.5
-        const startZ = -4; // Etwas weiter von der Kamera entfernt
-
-        ball.setAttribute('position', `${startX} ${startY} ${startZ}`);
+        // Der Ball startet über dem Hiro-Marker
+        ball.setAttribute('position', '0 0.5 0');
         ball.setAttribute('visible', 'true');
         isBallFlying = false;
         ballVelocity.set(0, 0, 0);
@@ -87,37 +80,25 @@
 
         function moveBall() {
           if (!isBallFlying) {
-            // Bewege den Ball auf die Kamera zu
+            // Bewege den Ball nach unten
             const ballPos = new THREE.Vector3();
             ball.object3D.getWorldPosition(ballPos);
 
-            const cameraPos = new THREE.Vector3();
-            camera.object3D.getWorldPosition(cameraPos);
+            ballPos.y -= speed;
 
-            const direction = new THREE.Vector3();
-            direction.subVectors(cameraPos, ballPos).normalize().multiplyScalar(speed);
-            ball.object3D.position.add(direction);
+            ball.object3D.position.set(ballPos.x, ballPos.y, ballPos.z);
 
-            // Überprüfe die Entfernung zwischen Ball und Kamera
-            const distance = ballPos.distanceTo(cameraPos);
-
-            if (distance < 0.5) {
-              handleCollision();
-            }
-
-            // Überprüfe, ob der Ball außerhalb des Sichtfelds ist
-            if (ballPos.z < 0) {
-              requestAnimationFrame(moveBall);
-            } else {
-              // Ball verpasst
+            if (ballPos.y < 0) {
+              // Ball hat den Boden erreicht
               resetBall();
+            } else {
+              requestAnimationFrame(moveBall);
             }
           } else {
             // Ball bewegt sich nach oben (wenn getroffen)
             ball.object3D.position.add(ballVelocity);
             ballVelocity.multiplyScalar(0.98); // Verlangsamt den Ball
 
-            // Wenn der Ball weit genug weggeflogen ist, zurücksetzen
             if (ball.object3D.position.y > 5) {
               resetBall();
             } else {
@@ -128,124 +109,13 @@
         moveBall();
       }
 
-      function handleCollision() {
-        if (!isBallFlying) {
-          isBallFlying = true;
-          // Setze eine zufällige Geschwindigkeit für den Ball
-          ballVelocity.set(
-            (Math.random() - 0.5) * 0.05,
-            0.1 + Math.random() * 0.05,
-            (Math.random() - 0.5) * 0.05
-          );
-          score += 1;
-          scoreboard.innerText = 'Punkte: ' + score;
-        }
-      }
-
       function resetBall() {
         ball.setAttribute('visible', 'false');
         setTimeout(dropBall, 1000);
       }
 
-      // Bewegungserkennung mit der Kamera im Bereich des Balls
-      let previousFrame = null;
-      let motionThreshold = 20; // Anpassen je nach Empfindlichkeit
-
-      const video = document.getElementById('videoElement');
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-
-      function startVideo() {
-        navigator.mediaDevices
-          .getUserMedia({ video: true })
-          .then((stream) => {
-            video.srcObject = stream;
-            video.play();
-            requestAnimationFrame(detectMotion);
-          })
-          .catch((err) => {
-            console.error('Fehler beim Zugriff auf die Kamera: ' + err);
-          });
-      }
-
-      function detectMotion() {
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-          // Videoelement auf Canvas zeichnen
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-          const currentFrame = context.getImageData(0, 0, canvas.width, canvas.height);
-
-          if (previousFrame) {
-            let motion = 0;
-            // Definiere den Bereich um den Ball
-            const ballScreenPos = getBallScreenPosition();
-            if (ballScreenPos) {
-              const { x, y } = ballScreenPos;
-              const regionSize = 100; // Größe des Bereichs um den Ball (anpassen nach Bedarf)
-              const startX = Math.max(0, x - regionSize / 2);
-              const startY = Math.max(0, y - regionSize / 2);
-              const endX = Math.min(canvas.width, x + regionSize / 2);
-              const endY = Math.min(canvas.height, y + regionSize / 2);
-
-              // Schleife über die Pixel im definierten Bereich
-              for (let i = startY; i < endY; i++) {
-                for (let j = startX; j < endX; j++) {
-                  const index = (i * canvas.width + j) * 4;
-                  const diff =
-                    Math.abs(currentFrame.data[index] - previousFrame.data[index]) +
-                    Math.abs(currentFrame.data[index + 1] - previousFrame.data[index + 1]) +
-                    Math.abs(currentFrame.data[index + 2] - previousFrame.data[index + 2]);
-
-                  if (diff > 50) {
-                    motion++;
-                  }
-                }
-              }
-
-              // Wenn die Anzahl der veränderten Pixel einen Schwellenwert überschreitet
-              if (motion > motionThreshold * 10) {
-                if (!isBallFlying) {
-                  handleCollision();
-                }
-              }
-            }
-          }
-
-          previousFrame = currentFrame;
-        }
-        requestAnimationFrame(detectMotion);
-      }
-
-      function getBallScreenPosition() {
-        // Ballposition in Weltkoordinaten erhalten
-        const ballWorldPos = new THREE.Vector3();
-        ball.object3D.getWorldPosition(ballWorldPos);
-
-        // Projektion auf Bildschirmkoordinaten
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-
-        // Kamera-Matrix
-        const camera = document.querySelector('a-camera-static').getObject3D('camera');
-        const vector = ballWorldPos.project(camera);
-
-        // Umrechnung auf Pixelkoordinaten
-        const x = (vector.x * 0.5 + 0.5) * width;
-        const y = (-vector.y * 0.5 + 0.5) * height;
-
-        if (x >= 0 && x <= width && y >= 0 && y <= height) {
-          return { x, y };
-        } else {
-          return null;
-        }
-      }
-
-      // Start des Spiels
       window.addEventListener('load', () => {
         dropBall();
-        startVideo();
       });
     </script>
   </body>
