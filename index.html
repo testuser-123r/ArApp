@@ -1,1 +1,199 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Falling Ball Game Optimized</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no"
+    />
+    <!-- A-Frame Library -->
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <!-- AR.js for A-Frame -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      #scoreboard {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: #fff;
+        font-size: 24px;
+        z-index: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="scoreboard">Punkte: 0</div>
+    <a-scene
+      embedded
+      arjs="sourceType: webcam; debugUIEnabled: false;"
+      vr-mode-ui="enabled: false"
+    >
+      <!-- Ball -->
+      <a-sphere
+        id="ball"
+        position="0 2 -5"
+        radius="0.3"
+        color="#EF2D5E"
+        shadow
+      ></a-sphere>
 
+      <!-- Light Sources -->
+      <a-light type="ambient" color="#888"></a-light>
+      <a-light
+        type="directional"
+        intensity="0.5"
+        position="0 1 0"
+      ></a-light>
+
+      <!-- Camera -->
+      <a-camera-static></a-camera-static>
+    </a-scene>
+
+    <script>
+      let score = 0;
+      let gameOver = false;
+      const ball = document.getElementById('ball');
+      const scoreboard = document.getElementById('scoreboard');
+      const camera = document.querySelector('a-camera-static');
+
+      let ballVelocity = new THREE.Vector3();
+      let isBallFlying = false;
+
+      function dropBall() {
+        // Zufällige Startposition (links oder rechts)
+        const startX = Math.random() < 0.5 ? -5 : 5;
+        const startY = Math.random() * 2 + 1; // Höhe zwischen 1 und 3
+        const startZ = -5;
+
+        ball.setAttribute('position', `${startX} ${startY} ${startZ}`);
+        ball.object3D.position.set(startX, startY, startZ);
+        ball.setAttribute('visible', 'true');
+        gameOver = false;
+        isBallFlying = false;
+        ballVelocity.set(0, 0, 0);
+        animateBall();
+      }
+
+      function animateBall() {
+        const speed = 0.02;
+
+        // Richtung zum Spieler (Kamera) berechnen
+        const ballPos = new THREE.Vector3();
+        ball.object3D.getWorldPosition(ballPos);
+
+        const cameraPos = new THREE.Vector3();
+        camera.object3D.getWorldPosition(cameraPos);
+
+        const direction = new THREE.Vector3();
+        direction.subVectors(cameraPos, ballPos).normalize().multiplyScalar(speed);
+
+        function moveBall() {
+          if (!gameOver) {
+            if (!isBallFlying) {
+              ball.object3D.position.add(direction);
+            } else {
+              // Ball bewegt sich nach oben (wenn getroffen)
+              ball.object3D.position.add(ballVelocity);
+              ballVelocity.multiplyScalar(0.98); // Verlangsamt den Ball
+            }
+
+            // Überprüfe, ob der Ball nahe genug ist
+            const currentBallPos = new THREE.Vector3();
+            ball.object3D.getWorldPosition(currentBallPos);
+
+            const distance = currentBallPos.distanceTo(cameraPos);
+
+            if (distance < 1 && !isBallFlying) {
+              handleCollision();
+            }
+
+            // Überprüfe, ob der Ball außerhalb des Sichtfelds ist
+            if (currentBallPos.z < 1 && currentBallPos.y > -1 && currentBallPos.y < 5) {
+              requestAnimationFrame(moveBall);
+            } else {
+              if (!gameOver) {
+                gameOver = true;
+                setTimeout(dropBall, 1000);
+              }
+            }
+          }
+        }
+        moveBall();
+      }
+
+      function handleCollision() {
+        if (!gameOver) {
+          isBallFlying = true;
+          // Setze eine zufällige Geschwindigkeit für den Ball
+          ballVelocity.set(
+            (Math.random() - 0.5) * 0.1,
+            0.1 + Math.random() * 0.1,
+            (Math.random() - 0.5) * 0.1
+          );
+          score += 1;
+          scoreboard.innerText = 'Punkte: ' + score;
+        }
+      }
+
+      // Gerätbewegung erfassen
+      let lastAcc = { x: null, y: null, z: null };
+      window.addEventListener('devicemotion', (event) => {
+        const acc = event.accelerationIncludingGravity;
+        if (lastAcc.x !== null) {
+          const deltaX = acc.x - lastAcc.x;
+          const deltaY = acc.y - lastAcc.y;
+          const deltaZ = acc.z - lastAcc.z;
+
+          const accChange = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+
+          // Schwellenwert für Bewegung (anpassen je nach Empfindlichkeit)
+          if (accChange > 3) {
+            // Überprüfe, ob der Ball nahe genug ist
+            const ballPos = new THREE.Vector3();
+            ball.object3D.getWorldPosition(ballPos);
+
+            const cameraPos = new THREE.Vector3();
+            camera.object3D.getWorldPosition(cameraPos);
+
+            const distance = ballPos.distanceTo(cameraPos);
+
+            if (distance < 1.5 && !isBallFlying) {
+              handleCollision();
+            }
+          }
+        }
+        lastAcc = {
+          x: acc.x,
+          y: acc.y,
+          z: acc.z
+        };
+      });
+
+      // Start des Spiels
+      window.addEventListener('load', () => {
+        // Für iOS muss die Erlaubnis für Bewegungssensoren eingeholt werden
+        if (
+          typeof DeviceMotionEvent !== 'undefined' &&
+          typeof DeviceMotionEvent.requestPermission === 'function'
+        ) {
+          DeviceMotionEvent.requestPermission()
+            .then((response) => {
+              if (response === 'granted') {
+                dropBall();
+              } else {
+                alert('Bewegungssensoren wurden nicht erlaubt.');
+              }
+            })
+            .catch(console.error);
+        } else {
+          dropBall();
+        }
+      });
+    </script>
+  </body>
+</html>
