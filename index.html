@@ -42,7 +42,7 @@
         shadow
       ></a-sphere>
 
-      <!-- Light Sources -->
+      <!-- Lichtquellen -->
       <a-light type="ambient" color="#888"></a-light>
       <a-light
         type="directional"
@@ -50,7 +50,7 @@
         position="0 1 0"
       ></a-light>
 
-      <!-- Camera -->
+      <!-- Kamera -->
       <a-camera-static></a-camera-static>
     </a-scene>
 
@@ -60,10 +60,14 @@
       const scoreboard = document.getElementById('scoreboard');
       const camera = document.querySelector('a-camera-static');
 
-      let ballVelocity = new THREE.Vector3();
+      let isBallMoving = false;
       let isBallFlying = false;
 
+      // Funktion zum Ballplatzieren
       function dropBall() {
+        if (isBallMoving) return; // Verhindert mehrere gleichzeitig laufende Animationen
+
+        isBallFlying = false;
         // Zufällige Startposition innerhalb eines kleineren Bereichs
         const startX = (Math.random() * 1.6 - 0.8).toFixed(2); // Zwischen -0.8 und 0.8
         const startY = (Math.random() * 1 + 1.5).toFixed(2); // Höhe zwischen 1.5 und 2.5
@@ -71,11 +75,11 @@
 
         ball.setAttribute('position', `${startX} ${startY} ${startZ}`);
         ball.setAttribute('visible', 'true');
-        isBallFlying = false;
-        ballVelocity.set(0, 0, 0);
+        isBallMoving = true;
         animateBall();
       }
 
+      // Funktion zur Ballanimation
       function animateBall() {
         const speed = 0.02;
 
@@ -94,9 +98,11 @@
 
             // Überprüfe die Entfernung zwischen Ball und Kamera
             const distance = ballPos.distanceTo(cameraPos);
+            console.log('Ball distance:', distance);
 
             if (distance < 0.5) {
-              handleCollision();
+              handleMiss();
+              return; // Stoppt die Bewegung
             }
 
             // Überprüfe, ob der Ball außerhalb des Sichtfelds ist
@@ -107,37 +113,55 @@
               resetBall();
             }
           } else {
-            // Ball bewegt sich nach oben (wenn getroffen)
-            ball.object3D.position.add(ballVelocity);
-            ballVelocity.multiplyScalar(0.98); // Verlangsamt den Ball
+            // Ball wurde getroffen und fliegt weg
+            const flySpeed = 0.05;
+            const flyDirection = new THREE.Vector3();
+            flyDirection.subVectors(ballPos, cameraPos).normalize().multiplyScalar(flySpeed);
+            ball.object3D.position.add(flyDirection);
 
-            // Wenn der Ball weit genug weggeflogen ist, zurücksetzen
-            if (ball.object3D.position.y > 5) {
+            // Ball zurücksetzen, wenn er weit genug weggeflogen ist
+            const newDistance = ball.object3D.position.distanceTo(cameraPos);
+            if (newDistance > 5) {
               resetBall();
             } else {
               requestAnimationFrame(moveBall);
             }
           }
         }
+
         moveBall();
       }
 
-      function handleCollision() {
+      // Funktion zum Behandeln eines Treffers
+      function handleHit() {
         if (!isBallFlying) {
           isBallFlying = true;
-          // Setze eine zufällige Geschwindigkeit für den Ball
-          ballVelocity.set(
-            (Math.random() - 0.5) * 0.05,
-            0.1 + Math.random() * 0.05,
-            (Math.random() - 0.5) * 0.05
-          );
           score += 1;
           scoreboard.innerText = 'Punkte: ' + score;
+          console.log('Hit detected. Score:', score);
+
+          // Optional: Ball kurz rot leuchten lassen als visuelles Feedback
+          ball.setAttribute('color', '#FF0000');
+          setTimeout(() => {
+            ball.setAttribute('color', '#EF2D5E');
+          }, 200);
+
+          // Ball zurücksetzen nach kurzer Verzögerung
+          setTimeout(resetBall, 500);
         }
       }
 
+      // Funktion zum Behandeln eines verpassten Balls
+      function handleMiss() {
+        // Ball erreicht die Kamera ohne getroffen zu werden
+        resetBall();
+      }
+
+      // Funktion zum Zurücksetzen des Balls
       function resetBall() {
         ball.setAttribute('visible', 'false');
+        isBallMoving = false;
+        isBallFlying = false;
         setTimeout(dropBall, 1000);
       }
 
@@ -148,6 +172,7 @@
         typeof DeviceMotionEvent !== 'undefined' &&
         typeof DeviceMotionEvent.requestPermission === 'function'
       ) {
+        // iOS 13+ Geräte
         DeviceMotionEvent.requestPermission()
           .then((response) => {
             if (response === 'granted') {
@@ -160,6 +185,7 @@
             dropBall();
           });
       } else if (typeof DeviceMotionEvent !== 'undefined') {
+        // Andere Geräte mit Bewegungssensoren
         hasMotionSensor = true;
         dropBall();
       } else {
@@ -191,7 +217,7 @@
               const distance = ballPos.distanceTo(cameraPos);
 
               if (distance < 1 && !isBallFlying) {
-                handleCollision();
+                handleHit();
               }
             }
           }
@@ -204,19 +230,30 @@
       } else {
         // Falls keine Bewegungssensoren vorhanden sind (Desktop), Klick-Event hinzufügen
         ball.addEventListener('click', () => {
-          // Überprüfe, ob der Ball nahe genug ist
-          const ballPos = new THREE.Vector3();
-          ball.object3D.getWorldPosition(ballPos);
-
-          const cameraPos = new THREE.Vector3();
-          camera.object3D.getWorldPosition(cameraPos);
-
-          const distance = ballPos.distanceTo(cameraPos);
-
-          if (distance < 1 && !isBallFlying) {
-            handleCollision();
-          }
+          // Behandeln als Verlust, wenn der Ball angeklickt wird
+          handleLoss();
         });
+      }
+
+      // Funktion zum Behandeln eines Verlustes
+      function handleLoss() {
+        // Verstecke den Ball
+        ball.setAttribute('visible', 'false');
+
+        // Zeige eine Game Over Nachricht
+        scoreboard.innerText = 'Game Over! Punkte: ' + score;
+
+        console.log('Game Over. Score:', score);
+
+        // Optional: Spiel nach einiger Zeit zurücksetzen
+        setTimeout(resetGame, 3000);
+      }
+
+      // Funktion zum Zurücksetzen des Spiels
+      function resetGame() {
+        score = 0;
+        scoreboard.innerText = 'Punkte: 0';
+        dropBall();
       }
     </script>
   </body>
