@@ -4,6 +4,7 @@ let reticle;
 let hitTestSource = null;
 let hitTestSourceRequested = false;
 let selectedObject = 'box'; // Standardobjekt
+let arSession = null;
 
 init();
 animate();
@@ -38,17 +39,6 @@ function init() {
     scene.add(controller);
 
     // UI-Buttons
-    const enterAR = document.getElementById('enter-ar');
-    enterAR.style.display = 'none'; // Standardmäßig ausblenden
-    enterAR.addEventListener('click', () => {
-        navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['hit-test'] })
-            .then(onSessionStarted)
-            .catch((err) => {
-                console.error("AR Session konnte nicht gestartet werden:", err);
-                alert("AR Session konnte nicht gestartet werden. Überprüfe die Konsole für weitere Informationen.");
-            });
-    });
-
     const buttons = document.querySelectorAll('#ui button');
     buttons.forEach(button => {
         button.addEventListener('click', () => {
@@ -60,9 +50,10 @@ function init() {
     if (navigator.xr) {
         navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
             if (supported) {
-                document.getElementById('enter-ar').style.display = 'block';
+                // Füge einen Event-Listener hinzu, der die AR-Sitzung beim ersten Klick startet
+                document.body.addEventListener('click', startAR, { once: true });
+                document.body.addEventListener('touchstart', startAR, { once: true });
             } else {
-                document.getElementById('enter-ar').style.display = 'none';
                 alert('AR wird auf diesem Gerät nicht unterstützt.');
             }
         }).catch((err) => {
@@ -76,7 +67,17 @@ function init() {
     window.addEventListener('resize', onWindowResize);
 }
 
+function startAR() {
+    navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['hit-test'] })
+        .then(onSessionStarted)
+        .catch((err) => {
+            console.error("AR Session konnte nicht gestartet werden:", err);
+            alert("AR Session konnte nicht gestartet werden. Überprüfe die Konsole für weitere Informationen.");
+        });
+}
+
 function onSessionStarted(session) {
+    arSession = session;
     renderer.xr.setSession(session);
     reticle.visible = false;
 
@@ -145,4 +146,5 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
+
 
