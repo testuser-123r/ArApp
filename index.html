@@ -3,26 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Memory Puzzle mit Hiro Marker</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <!-- Three.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- AR.js -->
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.js"></script>
-    <!-- Tween.js für Animationen -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <title>Einfaches AR mit WebXR</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="ui-container">
-        <div id="score">Punkte: 0</div>
-        <div id="message"></div>
-        <button id="restart">Neustarten</button>
+    <button id="enter-ar">AR starten</button>
+    <div id="ui">
+        <button data-obj="box">Box</button>
+        <button data-obj="sphere">Sphere</button>
     </div>
-    
-    <!-- Three.js Renderer -->
-    <div id="threejs-container"></div>
-    
-    <!-- Haupt-JavaScript-Datei -->
-    <script src="js/main.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
