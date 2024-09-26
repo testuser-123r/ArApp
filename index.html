@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- A-Frame Bibliothek -->
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  <!-- A-Frame AR-Toolkit -->
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+  <!-- WebXR Polyfill für bessere Browserkompatibilität -->
+  <script src="https://cdn.jsdelivr.net/npm/webxr-polyfill@latest/build/webxr-polyfill.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; }
     #info {
@@ -18,7 +18,9 @@
       padding: 10px;
       border-radius: 5px;
       z-index: 1;
+      font-family: Arial, sans-serif;
     }
+    a-scene { width: 100%; height: 100vh; }
   </style>
 </head>
 <body>
@@ -26,43 +28,57 @@
     <h3>AR Anwendung</h3>
     <p>Tippe auf den Bildschirm, um ein Objekt zu platzieren.</p>
   </div>
+  
   <a-scene
-    embedded
-    arjs="sourceType: webcam; debugUIEnabled: false;"
+    xrweb
     renderer="logarithmicDepthBuffer: true; antialias: true;"
+    embedded
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
   >
-    <!-- Kamera -->
-    <a-entity camera></a-entity>
+    <!-- Kamera mit angepasstem Field of View (FOV) -->
+    <a-entity camera="fov: 80"></a-entity>
 
     <!-- Licht -->
     <a-entity light="type: ambient; color: #ffffff"></a-entity>
     <a-entity light="type: directional; color: #ffffff; intensity: 0.5" position="1 1 0"></a-entity>
 
-    <!-- Platz für Objekte -->
+    <!-- Container für platzierte Objekte -->
     <a-entity id="object-container"></a-entity>
   </a-scene>
 
   <script>
-    // Warte bis die Szene geladen ist
-    document.querySelector('a-scene').addEventListener('click', function (evt) {
-      // Erhalte die Klickposition
-      var mouseX = evt.detail.intersection.point.x;
-      var mouseY = evt.detail.intersection.point.y;
-      var mouseZ = evt.detail.intersection.point.z;
+    // Funktion zum Platzieren von Objekten vor der Kamera
+    function placeObject() {
+      const scene = document.querySelector('a-scene');
+      const cameraEl = scene.camera.el;
+      const camera = scene.camera;
+
+      // Bestimme die Position 1 Meter vor der Kamera
+      const position = new THREE.Vector3(0, 0, -1);
+      position.applyQuaternion(camera.quaternion);
+      position.add(camera.position);
 
       // Erstelle ein neues Objekt (z.B. eine Box)
-      var box = document.createElement('a-box');
-      box.setAttribute('position', evt.detail.intersection.point);
+      const box = document.createElement('a-box');
+      box.setAttribute('position', position);
       box.setAttribute('rotation', '0 45 0');
       box.setAttribute('color', '#4CC3D9');
       box.setAttribute('depth', '0.5');
       box.setAttribute('height', '0.5');
       box.setAttribute('width', '0.5');
+      box.setAttribute('shadow', 'cast: true; receive: true');
 
       // Füge das Objekt zur Szene hinzu
       document.getElementById('object-container').appendChild(box);
-    });
+    }
+
+    // Event Listener für Klick oder Touch
+    const scene = document.querySelector('a-scene');
+    scene.addEventListener('click', placeObject);
+    scene.addEventListener('touchend', placeObject);
   </script>
 </body>
 </html>
+
 
