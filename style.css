@@ -5,25 +5,13 @@ body {
     background-color: #000;
 }
 
-#enter-ar {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    padding: 10px 20px;
-    font-size: 16px;
-    z-index: 1;
-    background-color: #ffffffaa;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
 #ui {
     position: absolute;
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 1;
+    display: flex;
 }
 
 #ui button {
