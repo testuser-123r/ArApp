@@ -7,40 +7,38 @@ body {
     background-color: #000;
 }
 
-#score, #message {
+#ui-container {
     position: absolute;
     top: 10px;
     left: 10px;
+    z-index: 2; /* Höher als #threejs-container */
+}
+
+#score, #message {
     color: white;
     font-size: 24px;
     background: rgba(0, 0, 0, 0.5);
     padding: 10px;
     border-radius: 5px;
-    z-index: 1;
-}
-
-#message {
-    top: 50px;
+    margin-bottom: 10px;
 }
 
 #restart {
-    position: absolute;
-    top: 90px;
-    left: 10px;
     padding: 10px 20px;
     font-size: 16px;
     cursor: pointer;
-    z-index: 1;
+    border: none;
+    border-radius: 5px;
+    background-color: #ff5722;
+    color: white;
 }
 
 #threejs-container {
-    position: fixed; /* Ändere von absolute zu fixed */
+    position: fixed;
     top: 0;
     left: 0;
     width: 100vw; /* Vollbildbreite */
     height: 100vh; /* Vollbildhöhe */
-    z-index: 0;
+    z-index: 1; /* Hinter #ui-container */
 }
-
-
 
