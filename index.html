@@ -1,150 +1,31 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Falling Ball Game mit Hiro Marker</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no" />
-    <!-- A-Frame Bibliothek -->
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <!-- AR.js für A-Frame -->
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>AR Memory Puzzle mit Handgesten</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div id="score">Punkte: 0</div>
+    <div id="message"></div>
+    <button id="restart">Neustarten</button>
+    
+    <!-- Video-Element für Handgestenerkennung -->
+    <video id="video" width="640" height="480" style="display: none;"></video>
+
+    <!-- Drei.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- AR.js -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.js"></script>
-    <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-      }
-      #scoreboard {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        color: #fff;
-        font-size: 24px;
-        z-index: 1;
-        font-family: Arial, sans-serif;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="scoreboard">Punkte: 0</div>
-
-    <a-scene
-      embedded
-      arjs="sourceType: webcam; debugUIEnabled: true;"
-      vr-mode-ui="enabled: false"
-    >
-      <!-- Marker für Erkennung -->
-      <a-marker preset="hiro" id="marker">
-        <!-- Optional: Visualisierung des Markers -->
-        <a-box position="0 0.5 0" material="color: blue; opacity: 0.5;"></a-box>
-      </a-marker>
-
-      <!-- Ball unabhängig vom Marker -->
-      <a-sphere
-        id="ball"
-        position="0 0.5 -0.5"
-        radius="0.2"
-        color="#EF2D5E"
-        shadow
-        ball-animator
-      ></a-sphere>
-
-      <!-- Lichtquellen -->
-      <a-light type="ambient" color="#888"></a-light>
-      <a-light type="directional" intensity="0.5" position="0 1 0"></a-light>
-    </a-scene>
-
-    <script>
-      // Registrierung der Komponente für die Ball-Animation
-      AFRAME.registerComponent('ball-animator', {
-        init: function () {
-          this.score = 0;
-          this.scoreboard = document.getElementById('scoreboard');
-          this.ball = this.el;
-          this.ballVelocity = new THREE.Vector3(0, -0.05, 0); // Schnellere Fallgeschwindigkeit
-          this.isBallFlying = true;
-          this.resetBall();
-        },
-
-        resetBall: function () {
-          console.log('Ball wird zurückgesetzt');
-          // Setze den Ball etwas vor der Kamera, um ihn sichtbar zu machen
-          this.ball.object3D.position.set(0, 0.5, -0.5);
-          this.ball.setAttribute('visible', 'true');
-          this.ballVelocity.set(0, -0.05, 0); // Anfangsgeschwindigkeit nach unten
-          this.isBallFlying = true;
-        },
-
-        tick: function (time, deltaTime) {
-          if (this.isBallFlying) {
-            // Bewege den Ball nach unten
-            this.ball.object3D.position.add(this.ballVelocity);
-            // Simuliere leichte Gravitation
-            this.ballVelocity.y -= 0.0005;
-
-            // Logge die Position des Balls zur Fehlersuche
-            console.log(`Ball Position: x=${this.ball.object3D.position.x.toFixed(2)}, y=${this.ball.object3D.position.y.toFixed(2)}, z=${this.ball.object3D.position.z.toFixed(2)}`);
-
-            // Überprüfe, ob der Ball den Boden erreicht hat (y < 0)
-            if (this.ball.object3D.position.y < 0) {
-              console.log('Ball hat den Boden erreicht');
-              this.score += 1;
-              this.updateScoreboard();
-              this.resetBall();
-              return; // Verhindere weitere Kollisionen beim Zurücksetzen
-            }
-
-            // Überprüfe auf Kollision mit dem Marker
-            const marker = document.getElementById('marker');
-            if (marker && marker.object3D.visible) {
-              const markerPos = new THREE.Vector3();
-              marker.object3D.getWorldPosition(markerPos);
-
-              const ballPos = new THREE.Vector3();
-              this.ball.object3D.getWorldPosition(ballPos);
-
-              const distance = markerPos.distanceTo(ballPos);
-              console.log(`Distance between marker and ball: ${distance.toFixed(2)}`);
-
-              // Definiere eine Schwelle für die Kollision
-              if (distance < 0.3) { // Anpassbar je nach Bedarf
-                console.log('Ball wurde getroffen!');
-                this.score += 5; // Punkte für Treffer
-                this.updateScoreboard();
-                this.pulseBall(); // Visueller Effekt
-                // Ändere die Richtung des Balles
-                this.ballVelocity.y = 0.05; // Ball bewegt sich nach oben
-                this.isBallFlying = false;
-              }
-            }
-          } else {
-            // Ball bewegt sich nach oben
-            this.ball.object3D.position.add(this.ballVelocity);
-            // Verlangsamen der Aufwärtsbewegung
-            this.ballVelocity.multiplyScalar(0.98);
-            console.log(`Ball bewegt sich nach oben: y=${this.ball.object3D.position.y.toFixed(2)}`);
-            if (this.ball.object3D.position.y > 0.5) {
-              console.log('Ball ist weggeflogen');
-              this.resetBall();
-            }
-          }
-        },
-
-        updateScoreboard: function () {
-          this.scoreboard.textContent = `Punkte: ${this.score}`;
-        },
-
-        // Methode zum Pulsieren des Balls
-        pulseBall: function () {
-          const originalScale = this.ball.getAttribute('scale');
-          this.ball.setAttribute('scale', { x: 1.2, y: 1.2, z: 1.2 });
-          setTimeout(() => {
-            this.ball.setAttribute('scale', originalScale);
-          }, 200);
-        }
-      });
-    </script>
-  </body>
+    <!-- TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <!-- Hand-Pose-Detection Modell -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection"></script>
+    
+    <!-- Haupt-JavaScript-Dateien -->
+    <script src="js/main.js"></script>
+    <script src="js/handDetection.js"></script>
+</body>
 </html>
-
 
 
