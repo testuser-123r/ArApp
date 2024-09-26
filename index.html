@@ -5,12 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Einfache AR mit WebXR</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        body { margin: 0; overflow: hidden; }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 1;
+        }
+        #start-ar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 1em 2em;
+            background: #0f0;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            z-index: 1;
+        }
+    </style>
 </head>
 <body>
     <div id="ui">
         <button data-obj="box">Box</button>
         <button data-obj="sphere">Sphere</button>
     </div>
+    <button id="start-ar">Start AR</button>
     <!-- Three.js Bibliothek -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r150/three.min.js"></script>
     <!-- App Skript -->
