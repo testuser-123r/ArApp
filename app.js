@@ -142,9 +142,11 @@ function render(timestamp, frame) {
             if (hitTestResults.length > 0) {
                 const hit = hitTestResults[0];
                 const pose = hit.getPose(renderer.xr.getReferenceSpace());
-                reticle.visible = true;
-                reticle.matrix.fromArray(pose.transform.matrix);
-                reticle.matrix.decompose(reticle.position, reticle.quaternion, reticle.scale);
+                if (pose) {
+                    reticle.visible = true;
+                    reticle.matrix.fromArray(pose.transform.matrix);
+                    reticle.matrix.decompose(reticle.position, reticle.quaternion, reticle.scale);
+                }
             } else {
                 reticle.visible = false;
             }
