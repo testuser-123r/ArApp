@@ -60,9 +60,9 @@ function init() {
     if (navigator.xr) {
         navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
             if (supported) {
-                enterAR.style.display = 'block';
+                document.getElementById('enter-ar').style.display = 'block';
             } else {
-                enterAR.style.display = 'none';
+                document.getElementById('enter-ar').style.display = 'none';
                 alert('AR wird auf diesem Gerät nicht unterstützt.');
             }
         }).catch((err) => {
@@ -145,3 +145,4 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
+
