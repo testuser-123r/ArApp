@@ -1,45 +1,68 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Einfache AR mit WebXR</title>
-    <style>
-        body { margin: 0; overflow: hidden; }
-        #ui {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            z-index: 1;
-        }
-        #start-ar {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 1em 2em;
-            background: #0f0;
-            color: #000;
-            border: none;
-            border-radius: 5px;
-            font-size: 1em;
-            cursor: pointer;
-            z-index: 1;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>WebXR AR Anwendung</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- A-Frame Bibliothek -->
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <!-- A-Frame AR-Toolkit -->
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255,255,255,0.8);
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 1;
+    }
+  </style>
 </head>
 <body>
-    <div id="ui">
-        <button data-obj="box">Box</button>
-        <button data-obj="sphere">Sphere</button>
-    </div>
-    <button id="start-ar">Start AR</button>
-    <!-- Three.js Bibliothek -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r150/three.min.js"></script>
-    <!-- App Skript -->
-    <script src="app.js"></script>
+  <div id="info">
+    <h3>AR Anwendung</h3>
+    <p>Tippe auf den Bildschirm, um ein Objekt zu platzieren.</p>
+  </div>
+  <a-scene
+    embedded
+    arjs="sourceType: webcam; debugUIEnabled: false;"
+    renderer="logarithmicDepthBuffer: true; antialias: true;"
+  >
+    <!-- Kamera -->
+    <a-entity camera></a-entity>
+
+    <!-- Licht -->
+    <a-entity light="type: ambient; color: #ffffff"></a-entity>
+    <a-entity light="type: directional; color: #ffffff; intensity: 0.5" position="1 1 0"></a-entity>
+
+    <!-- Platz für Objekte -->
+    <a-entity id="object-container"></a-entity>
+  </a-scene>
+
+  <script>
+    // Warte bis die Szene geladen ist
+    document.querySelector('a-scene').addEventListener('click', function (evt) {
+      // Erhalte die Klickposition
+      var mouseX = evt.detail.intersection.point.x;
+      var mouseY = evt.detail.intersection.point.y;
+      var mouseZ = evt.detail.intersection.point.z;
+
+      // Erstelle ein neues Objekt (z.B. eine Box)
+      var box = document.createElement('a-box');
+      box.setAttribute('position', evt.detail.intersection.point);
+      box.setAttribute('rotation', '0 45 0');
+      box.setAttribute('color', '#4CC3D9');
+      box.setAttribute('depth', '0.5');
+      box.setAttribute('height', '0.5');
+      box.setAttribute('width', '0.5');
+
+      // Füge das Objekt zur Szene hinzu
+      document.getElementById('object-container').appendChild(box);
+    });
+  </script>
 </body>
 </html>
+
