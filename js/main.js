@@ -1,6 +1,7 @@
 let camera, scene, renderer;
 let controller;
 let reticle;
+let hitTestSource = null;
 let selectedObject = 'box'; // Standardobjekt
 
 init();
@@ -26,6 +27,7 @@ function init() {
     const geometry = new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2);
     const material = new THREE.MeshBasicMaterial({ color: 0x0fff00 });
     reticle = new THREE.Mesh(geometry, material);
+    reticle.matrixAutoUpdate = false;
     reticle.visible = false;
     scene.add(reticle);
 
@@ -39,7 +41,9 @@ function init() {
     enterAR.addEventListener('click', () => {
         navigator.xr.requestSession('immersive-ar', {
             requiredFeatures: ['hit-test']
-        }).then(onSessionStarted);
+        }).then(onSessionStarted).catch((err) => {
+            console.error("AR Session konnte nicht gestartet werden:", err);
+        });
     });
 
     const buttons = document.querySelectorAll('#ui button');
@@ -49,52 +53,44 @@ function init() {
         });
     });
 
-    // Hit-Test Initialisierung
-    navigator.xr && navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
-        if (supported) {
-            enterAR.style.display = 'block';
-        } else {
-            enterAR.style.display = 'none';
-            alert('AR wird auf diesem Gerät nicht unterstützt.');
-        }
-    });
+    // Überprüfen, ob WebXR AR unterstützt wird
+    if (navigator.xr) {
+        navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+            if (supported) {
+                document.getElementById('enter-ar').style.display = 'block';
+            } else {
+                document.getElementById('enter-ar').style.display = 'none';
+                alert('AR wird auf diesem Gerät nicht unterstützt.');
+            }
+        }).catch((err) => {
+            console.error("Fehler beim Prüfen der Session-Unterstützung:", err);
+        });
+    } else {
+        alert('WebXR wird von diesem Browser nicht unterstützt.');
+    }
+
+    // Fenstergröße anpassen
+    window.addEventListener('resize', onWindowResize);
 }
 
 function onSessionStarted(session) {
     renderer.xr.setSession(session);
-    session.addEventListener('end', () => {
-        reticle.visible = false;
-    });
+    reticle.visible = false;
 
-    // Hit-Test Quelle und Ziele
-    let xrReferenceSpace = null;
-    session.requestReferenceSpace('viewer').then((refSpace) => {
-        xrReferenceSpace = refSpace;
-        return session.requestReferenceSpace('local').then((localRefSpace) => {
-            const xrHitTestSource = session.requestHitTestSource({ space: localRefSpace });
-            xrHitTestSource.then((source) => {
-                session.addEventListener('select', onSelect);
-                session.requestAnimationFrame(onXRFrame);
-            });
-        });
-    });
-}
-
-function onXRFrame(time, frame) {
-    const session = frame.session;
     const referenceSpace = renderer.xr.getReferenceSpace();
-    const hitTestResults = frame.getHitTestResults(renderer.xr.getSession().requestHitTestSource({ space: referenceSpace }));
 
-    if (hitTestResults.length > 0) {
-        const hit = hitTestResults[0].getPose(referenceSpace);
-        reticle.visible = true;
-        reticle.position.copy(hit.transform.position);
-    } else {
-        reticle.visible = false;
-    }
+    // Anfordern der Hit-Test Quelle
+    session.requestReferenceSpace('viewer').then((viewerRefSpace) => {
+        return session.requestHitTestSource({ space: viewerRefSpace });
+    }).then((source) => {
+        hitTestSource = source;
+    }).catch((err) => {
+        console.error("Hit-Test Source konnte nicht angefordert werden:", err);
+    });
 
-    renderer.render(scene, camera);
-    session.requestAnimationFrame(onXRFrame);
+    session.addEventListener('end', () => {
+        hitTestSource = null;
+    });
 }
 
 function onSelect() {
@@ -108,7 +104,7 @@ function onSelect() {
 
         const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.position.copy(reticle.position);
+        mesh.position.setFromMatrixPosition(reticle.matrix);
         scene.add(mesh);
     }
 }
@@ -117,13 +113,29 @@ function animate() {
     renderer.setAnimationLoop(render);
 }
 
-function render() {
+function render(timestamp, frame) {
+    if (frame) {
+        const session = frame.session;
+        const referenceSpace = renderer.xr.getReferenceSpace();
+
+        if (hitTestSource) {
+            const hitTestResults = frame.getHitTestResults(hitTestSource);
+            if (hitTestResults.length > 0) {
+                const hit = hitTestResults[0];
+                const pose = hit.getPose(referenceSpace);
+                reticle.visible = true;
+                reticle.matrix.fromArray(pose.transform.matrix);
+            } else {
+                reticle.visible = false;
+            }
+        }
+    }
+
     renderer.render(scene, camera);
 }
 
-// Fenstergröße anpassen
-window.addEventListener('resize', () => {
+function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-});
+}
