@@ -1,4 +1,6 @@
+// js/main.js
 
+console.log('main.js geladen');
 
 let scene, camera, renderer, arSource, arContext;
 const cards = [];
@@ -15,6 +17,7 @@ const restartButton = document.getElementById('restart');
 
 // Initialisiere die Szene, Kamera und Renderer
 function initThreeJS() {
+    console.log('Initialisiere ThreeJS...');
     scene = new THREE.Scene();
 
     camera = new THREE.Camera();
@@ -36,6 +39,7 @@ function initThreeJS() {
     });
 
     arSource.init(() => {
+        console.log('AR Toolkit Source initialisiert.');
         onResize(); // Stelle sicher, dass onResize() definiert ist
         // Starte AR Context
         initARContext();
@@ -46,9 +50,10 @@ function initThreeJS() {
 
 // Definiere die onResize() Funktion
 function onResize() {
+    console.log('Resize-Funktion aufgerufen.');
     arSource.onResizeElement();
     arSource.copyElementSizeTo(renderer.domElement);
-    if (arContext.arController !== null) {
+    if (arContext && arContext.arController !== null) {
         arSource.copyElementSizeTo(arContext.arController.canvas);
     }
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -57,12 +62,14 @@ function onResize() {
 
 // Initialisiere den AR-Kontext
 function initARContext() {
+    console.log('Initialisiere AR Toolkit Context...');
     arContext = new THREEx.ArToolkitContext({
         cameraParametersUrl: 'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/data/camera_para.dat',
         detectionMode: 'mono'
     });
 
     arContext.init(() => {
+        console.log('AR Toolkit Context initialisiert.');
         camera.projectionMatrix.copy(arContext.getProjectionMatrix());
     });
 
@@ -82,6 +89,7 @@ function initARContext() {
 
 // Karten erstellen und platzieren
 function createCards() {
+    console.log('Erstelle Karten...');
     const cardImages = [];
     for (let i = 1; i <= totalPairs; i++) {
         cardImages.push(`assets/images/card${i}.png`);
@@ -119,10 +127,12 @@ function createCards() {
 
 // Funktion zum Mischen der Karten
 function shuffle(array) {
+    console.log('Mische Karten...');
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];
     }
+    console.log('Karten gemischt.');
     return array;
 }
 
@@ -130,6 +140,7 @@ function shuffle(array) {
 function flipCard(card) {
     if (lockBoard || card.userData.flipped || card.userData.matched) return;
 
+    console.log(`Flippe Karte: ${card.userData.img}`);
     card.userData.flipped = true;
 
     // Drehe die Karte um die Y-Achse
@@ -141,6 +152,7 @@ function flipCard(card) {
     // Ändere die Textur nach der Animation
     flipAnimation.onComplete(() => {
         card.material.map = new THREE.TextureLoader().load(card.userData.img);
+        console.log(`Karte umgedreht: ${card.userData.img}`);
     });
 
     if (!firstCard) {
@@ -157,6 +169,7 @@ function checkForMatch() {
     const isMatch = firstCard.userData.img === secondCard.userData.img;
 
     if (isMatch) {
+        console.log('Paar gefunden!');
         firstCard.userData.matched = true;
         secondCard.userData.matched = true;
         score += 10;
@@ -183,6 +196,7 @@ function checkForMatch() {
         });
 
     } else {
+        console.log('Kein Paar.');
         setTimeout(() => {
             firstCard.userData.flipped = false;
             secondCard.userData.flipped = false;
@@ -197,6 +211,7 @@ function checkForMatch() {
 function resetBoard() {
     [firstCard, secondCard] = [null, null];
     lockBoard = false;
+    console.log('Board zurückgesetzt.');
 }
 
 // Spielende prüfen
@@ -204,16 +219,19 @@ function checkGameEnd() {
     const allMatched = cards.every(card => card.userData.matched);
     if (allMatched) {
         messageElement.textContent = 'Glückwunsch! Spiel beendet.';
+        console.log('Spiel beendet. Alle Paare gefunden.');
     }
 }
 
 // Score aktualisieren
 function updateScore() {
     scoreElement.textContent = `Punkte: ${score}`;
+    console.log(`Punkte: ${score}`);
 }
 
 // Restart-Funktion
 restartButton.addEventListener('click', () => {
+    console.log('Spiel neu gestartet.');
     location.reload();
 });
 
@@ -245,4 +263,5 @@ renderer.domElement.addEventListener('click', (event) => {
         flipCard(selectedCard);
     }
 });
+
 
