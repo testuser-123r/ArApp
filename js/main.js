@@ -2,6 +2,7 @@ let camera, scene, renderer;
 let controller;
 let reticle;
 let hitTestSource = null;
+let hitTestSourceRequested = false;
 let selectedObject = 'box'; // Standardobjekt
 
 init();
@@ -38,12 +39,14 @@ function init() {
 
     // UI-Buttons
     const enterAR = document.getElementById('enter-ar');
+    enterAR.style.display = 'none'; // Standardmäßig ausblenden
     enterAR.addEventListener('click', () => {
-        navigator.xr.requestSession('immersive-ar', {
-            requiredFeatures: ['hit-test']
-        }).then(onSessionStarted).catch((err) => {
-            console.error("AR Session konnte nicht gestartet werden:", err);
-        });
+        navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['hit-test'] })
+            .then(onSessionStarted)
+            .catch((err) => {
+                console.error("AR Session konnte nicht gestartet werden:", err);
+                alert("AR Session konnte nicht gestartet werden. Überprüfe die Konsole für weitere Informationen.");
+            });
     });
 
     const buttons = document.querySelectorAll('#ui button');
@@ -57,9 +60,9 @@ function init() {
     if (navigator.xr) {
         navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
             if (supported) {
-                document.getElementById('enter-ar').style.display = 'block';
+                enterAR.style.display = 'block';
             } else {
-                document.getElementById('enter-ar').style.display = 'none';
+                enterAR.style.display = 'none';
                 alert('AR wird auf diesem Gerät nicht unterstützt.');
             }
         }).catch((err) => {
@@ -77,9 +80,12 @@ function onSessionStarted(session) {
     renderer.xr.setSession(session);
     reticle.visible = false;
 
-    const referenceSpace = renderer.xr.getReferenceSpace();
+    // Referenzraum anfordern
+    session.requestReferenceSpace('local').then((refSpace) => {
+        renderer.xr.setReferenceSpace(refSpace);
+    });
 
-    // Anfordern der Hit-Test Quelle
+    // Hit-Test-Quelle anfordern
     session.requestReferenceSpace('viewer').then((viewerRefSpace) => {
         return session.requestHitTestSource({ space: viewerRefSpace });
     }).then((source) => {
@@ -88,6 +94,7 @@ function onSessionStarted(session) {
         console.error("Hit-Test Source konnte nicht angefordert werden:", err);
     });
 
+    // Sitzung beenden
     session.addEventListener('end', () => {
         hitTestSource = null;
     });
@@ -104,7 +111,8 @@ function onSelect() {
 
         const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.position.setFromMatrixPosition(reticle.matrix);
+        mesh.position.copy(reticle.position);
+        mesh.quaternion.copy(reticle.quaternion);
         scene.add(mesh);
     }
 }
@@ -115,23 +123,21 @@ function animate() {
 
 function render(timestamp, frame) {
     if (frame) {
-        const session = frame.session;
-        const referenceSpace = renderer.xr.getReferenceSpace();
-
         if (hitTestSource) {
             const hitTestResults = frame.getHitTestResults(hitTestSource);
             if (hitTestResults.length > 0) {
                 const hit = hitTestResults[0];
-                const pose = hit.getPose(referenceSpace);
+                const pose = hit.getPose(renderer.xr.getReferenceSpace());
                 reticle.visible = true;
                 reticle.matrix.fromArray(pose.transform.matrix);
+                reticle.matrix.decompose(reticle.position, reticle.quaternion, reticle.scale);
             } else {
                 reticle.visible = false;
             }
         }
-    }
 
-    renderer.render(scene, camera);
+        renderer.render(scene, camera);
+    }
 }
 
 function onWindowResize() {
