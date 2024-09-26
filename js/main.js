@@ -36,12 +36,23 @@ function initThreeJS() {
     });
 
     arSource.init(() => {
-        onResize();
+        onResize(); // Stelle sicher, dass onResize() definiert ist
         // Starte AR Context
         initARContext();
     });
 
-    window.addEventListener('resize', onResize);
+    window.addEventListener('resize', onResize); // Registriere den Event-Listener
+}
+
+// Definiere die onResize() Funktion
+function onResize() {
+    arSource.onResizeElement();
+    arSource.copyElementSizeTo(renderer.domElement);
+    if (arContext.arController !== null) {
+        arSource.copyElementSizeTo(arContext.arController.canvas);
+    }
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    console.log('Resize durchgeführt.');
 }
 
 // Initialisiere den AR-Kontext
@@ -62,6 +73,8 @@ function initARContext() {
         type: 'pattern',
         patternUrl: 'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/data/patt.hiro'
     });
+
+    console.log('Marker hinzugefügt.');
 
     // Erstelle Karten
     createCards();
