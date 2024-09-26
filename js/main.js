@@ -106,9 +106,9 @@ function createCards() {
     // Karten erstellen und platzieren
     const gridCols = 3; // Anzahl der Spalten
     const gridRows = Math.ceil(deck.length / gridCols);
-    const spacingX = 1.5;
-    const spacingY = 1.5;
-    const geometry = new THREE.PlaneGeometry(1, 1.5);
+    const spacingX = 1.2; // Weniger Platz pro Karte
+    const spacingY = 1.2;
+    const geometry = new THREE.PlaneGeometry(0.8, 1.2); // Kleinere Karten
 
     deck.forEach((img, index) => {
         const texture = new THREE.TextureLoader().load('assets/images/back.png');
@@ -116,10 +116,12 @@ function createCards() {
         const card = new THREE.Mesh(geometry, material);
         const row = Math.floor(index / gridCols);
         const col = index % gridCols;
-        card.position.set((col - (gridCols - 1) / 2) * spacingX, (row - (gridRows - 1) / 2) * spacingY, 0);
+        // Positionierung: Leichter Abstand, z-Richtung nach hinten, um die UI nicht zu blockieren
+        card.position.set((col - (gridCols - 1) / 2) * spacingX, -(row - (gridRows - 1) / 2) * spacingY, 0.5);
         card.userData = { img, flipped: false, matched: false };
         scene.add(card);
         cards.push(card);
+        console.log(`Karte hinzugefügt: ${img}`);
     });
 
     console.log('Karten erstellt und platziert.');
@@ -263,5 +265,3 @@ renderer.domElement.addEventListener('click', (event) => {
         flipCard(selectedCard);
     }
 });
-
-
