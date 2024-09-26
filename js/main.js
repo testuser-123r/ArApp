@@ -28,14 +28,6 @@ function initThreeJS() {
     renderer.setPixelRatio(window.devicePixelRatio);
     document.getElementById('threejs-container').appendChild(renderer.domElement);
 
-    // Licht hinzufügen (optional, verbessert die Darstellung)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    directionalLight.position.set(0, 1, 1).normalize();
-    scene.add(directionalLight);
-
     // AR.js Initialisierung
     arSource = new THREEx.ArToolkitSource({
         sourceType: 'webcam',
@@ -44,7 +36,7 @@ function initThreeJS() {
     });
 
     arSource.init(() => {
-        onResize();
+        onResize(); // Stelle sicher, dass onResize() definiert ist
         // Starte AR Context
         initARContext();
     });
@@ -106,11 +98,9 @@ function createCards() {
     // Karten erstellen und platzieren
     const gridCols = 3; // Anzahl der Spalten
     const gridRows = Math.ceil(deck.length / gridCols);
-    const spacingX = 1.2; // kleinere Karten
-    const spacingY = 1.8; // angepasste Reihenhöhe
-    const cardWidth = 1; // kleinere Breite
-    const cardHeight = 1.5; // kleinere Höhe
-    const geometry = new THREE.PlaneGeometry(cardWidth, cardHeight);
+    const spacingX = 1.5;
+    const spacingY = 1.5;
+    const geometry = new THREE.PlaneGeometry(1, 1.5);
 
     deck.forEach((img, index) => {
         const texture = new THREE.TextureLoader().load('assets/images/back.png');
@@ -118,7 +108,6 @@ function createCards() {
         const card = new THREE.Mesh(geometry, material);
         const row = Math.floor(index / gridCols);
         const col = index % gridCols;
-        // Anpassen der Position, damit alle Karten sichtbar sind
         card.position.set((col - (gridCols - 1) / 2) * spacingX, (row - (gridRows - 1) / 2) * spacingY, 0);
         card.userData = { img, flipped: false, matched: false };
         scene.add(card);
@@ -142,8 +131,17 @@ function flipCard(card) {
     if (lockBoard || card.userData.flipped || card.userData.matched) return;
 
     card.userData.flipped = true;
-    const texture = new THREE.TextureLoader().load(card.userData.img);
-    card.material.map = texture;
+
+    // Drehe die Karte um die Y-Achse
+    const flipAnimation = new TWEEN.Tween(card.rotation)
+        .to({ y: card.rotation.y + Math.PI }, 500)
+        .easing(TWEEN.Easing.Quadratic.Out)
+        .start();
+
+    // Ändere die Textur nach der Animation
+    flipAnimation.onComplete(() => {
+        card.material.map = new THREE.TextureLoader().load(card.userData.img);
+    });
 
     if (!firstCard) {
         firstCard = card;
@@ -163,10 +161,28 @@ function checkForMatch() {
         secondCard.userData.matched = true;
         score += 10;
         updateScore();
-        resetBoard();
-        checkGameEnd();
+
+        // Beispiel: Karten pulsieren lassen
+        const pulse = new TWEEN.Tween(firstCard.scale)
+            .to({ x: 1.2, y: 1.2, z: 1.2 }, 300)
+            .yoyo(true)
+            .repeat(1)
+            .easing(TWEEN.Easing.Quadratic.InOut)
+            .start();
+
+        const pulse2 = new TWEEN.Tween(secondCard.scale)
+            .to({ x: 1.2, y: 1.2, z: 1.2 }, 300)
+            .yoyo(true)
+            .repeat(1)
+            .easing(TWEEN.Easing.Quadratic.InOut)
+            .start();
+
+        pulse.onComplete(() => {
+            resetBoard();
+            checkGameEnd();
+        });
+
     } else {
-        // Karten nach kurzer Verzögerung wieder umdrehen
         setTimeout(() => {
             firstCard.userData.flipped = false;
             secondCard.userData.flipped = false;
@@ -198,68 +214,8 @@ function updateScore() {
 
 // Restart-Funktion
 restartButton.addEventListener('click', () => {
-    resetGame();
+    location.reload();
 });
-
-function resetGame() {
-    cards.forEach(card => {
-        card.userData.flipped = false;
-        card.userData.matched = false;
-        card.material.map = new THREE.TextureLoader().load('assets/images/back.png');
-        card.rotation.set(0, 0, 0); // Setze Rotation zurück, falls animiert
-    });
-    firstCard = null;
-    secondCard = null;
-    lockBoard = false;
-    score = 0;
-    updateScore();
-    messageElement.textContent = '';
-}
-
-// Funktion zur Erkennung von Klicks oder Touches auf Karten
-function onDocumentMouseDown(event) {
-    event.preventDefault();
-
-    const mouse = new THREE.Vector2();
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
-
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, camera);
-
-    const intersects = raycaster.intersectObjects(cards);
-
-    if (intersects.length > 0) {
-        const selectedCard = intersects[0].object;
-        flipCard(selectedCard);
-    }
-}
-
-// Touch-Event Listener hinzufügen
-function onDocumentTouchStart(event) {
-    event.preventDefault();
-
-    if (event.touches.length > 0) {
-        const touch = event.touches[0];
-        const mouse = new THREE.Vector2();
-        mouse.x = (touch.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = - (touch.clientY / window.innerHeight) * 2 + 1;
-
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, camera);
-
-        const intersects = raycaster.intersectObjects(cards);
-
-        if (intersects.length > 0) {
-            const selectedCard = intersects[0].object;
-            flipCard(selectedCard);
-        }
-    }
-}
-
-// Event Listener für Mausklicks und Touches hinzufügen
-renderer.domElement.addEventListener('mousedown', onDocumentMouseDown, false);
-renderer.domElement.addEventListener('touchstart', onDocumentTouchStart, false);
 
 // Render-Schleife
 function animate() {
@@ -272,3 +228,21 @@ function animate() {
 }
 initThreeJS();
 animate();
+
+// Interaktionen hinzufügen
+renderer.domElement.addEventListener('click', (event) => {
+    // Berechne die Mausposition im Normalized Device Coordinates (-1 bis +1) für beide Komponenten
+    const mouse = new THREE.Vector2();
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(cards);
+
+    if (intersects.length > 0) {
+        const selectedCard = intersects[0].object;
+        flipCard(selectedCard);
+    }
+});
+
