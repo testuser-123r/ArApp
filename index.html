@@ -4,16 +4,7 @@
     <meta charset="UTF-8">
     <title>AR Memory Puzzle mit Handgesten</title>
     <link rel="stylesheet" href="css/styles.css">
-</head>
-<body>
-    <div id="score">Punkte: 0</div>
-    <div id="message"></div>
-    <button id="restart">Neustarten</button>
-    
-    <!-- Video-Element für Handgestenerkennung -->
-    <video id="video" width="640" height="480" style="display: none;"></video>
-
-    <!-- Drei.js -->
+    <!-- Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- AR.js -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.js"></script>
@@ -21,11 +12,17 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
     <!-- Hand-Pose-Detection Modell -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection"></script>
+</head>
+<body>
+    <div id="score">Punkte: 0</div>
+    <div id="message"></div>
+    <button id="restart">Neustarten</button>
+    
+    <!-- Three.js Renderer -->
+    <div id="threejs-container"></div>
     
     <!-- Haupt-JavaScript-Dateien -->
     <script src="js/main.js"></script>
     <script src="js/handDetection.js"></script>
 </body>
 </html>
-
-
