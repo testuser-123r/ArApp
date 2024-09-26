@@ -2,14 +2,29 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>WebXR AR Anwendung</title>
+  <title>AR Anwendung mit A-Frame und WebXR Hit-Test</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
   <!-- A-Frame Bibliothek -->
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  <!-- AR.js für A-Frame -->
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.min.js"></script>
-  <!-- Eigene Styles -->
-  <link rel="stylesheet" href="styles.css">
+  
+  <!-- aframe-xrextras Bibliothek für Hit-Test Unterstützung -->
+  <script src="https://unpkg.com/aframe-xrextras@1.0.6/dist/aframe-xrextras.min.js"></script>
+  
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255,255,255,0.8);
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 1;
+      font-family: Arial, sans-serif;
+    }
+    a-scene { width: 100%; height: 100vh; }
+  </style>
 </head>
 <body>
   <!-- Informationsbereich -->
@@ -18,11 +33,12 @@
     <p>Tippe auf den Bildschirm, um ein Objekt zu platzieren.</p>
   </div>
   
-  <!-- A-Frame Szene mit AR.js Konfiguration -->
+  <!-- A-Frame Szene mit aframe-xrextras Hit-Test Konfiguration -->
   <a-scene
-    embedded
-    arjs="sourceType: webcam; debugUIEnabled: false;"
+    xrweb
+    xrextras-hittest
     renderer="logarithmicDepthBuffer: true; antialias: true;"
+    embedded
     vr-mode-ui="enabled: false"
   >
     <!-- Kamera -->
@@ -36,8 +52,43 @@
     <a-entity id="object-container"></a-entity>
   </a-scene>
 
-  <!-- Eigene Skripte -->
-  <script src="scripts.js"></script>
+  <script>
+    /**
+     * Funktion zum Erstellen und Hinzufügen eines Box-Objekts zur Szene
+     * @param {THREE.Vector3} position - Die Position, an der das Objekt platziert werden soll
+     */
+    function createBox(position) {
+      const box = document.createElement('a-box');
+      box.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
+      box.setAttribute('rotation', '0 45 0');
+      box.setAttribute('color', '#4CC3D9');
+      box.setAttribute('depth', '0.2');   // Realistische Größe (0.2 Meter)
+      box.setAttribute('height', '0.2');  // Realistische Größe (0.2 Meter)
+      box.setAttribute('width', '0.2');   // Realistische Größe (0.2 Meter)
+      box.setAttribute('shadow', 'cast: true; receive: true');
+      document.getElementById('object-container').appendChild(box);
+    }
+
+    // Event Listener für Hit-Test Ergebnisse
+    document.querySelector('a-scene').addEventListener('xrextras-hittest-results', (evt) => {
+      const hitTestResults = evt.detail.results;
+      if (hitTestResults.length > 0) {
+        const hitPose = hitTestResults[0].getPose(document.querySelector('a-scene').renderer.xr.getReferenceSpace());
+        if (hitPose) {
+          const position = hitPose.transform.position;
+          createBox(position);
+        }
+      }
+    });
+
+    // Event Listener für Klick oder Touch auf die Szene
+    document.querySelector('a-scene').addEventListener('click', () => {
+      document.querySelector('a-scene').emit('xrextras-hittest-start', {});
+    });
+    document.querySelector('a-scene').addEventListener('touchend', () => {
+      document.querySelector('a-scene').emit('xrextras-hittest-start', {});
+    });
+  </script>
 </body>
 </html>
 
