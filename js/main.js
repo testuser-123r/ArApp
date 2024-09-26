@@ -1,62 +1,7 @@
 // js/main.js
 
-// Szene, Kamera und Renderer erstellen
-const scene = new THREE.Scene();
-
-const camera = new THREE.Camera();
-scene.add(camera);
-
-const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true
-});
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.domElement.style.position = 'absolute';
-renderer.domElement.style.top = '0px';
-renderer.domElement.style.left = '0px';
-document.body.appendChild(renderer.domElement);
-
-// AR.js Initialisierung
-const arSource = new THREEx.ArToolkitSource({
-    sourceType: 'webcam'
-});
-
-arSource.init(() => {
-    setTimeout(onResize, 2000);
-});
-
-window.addEventListener('resize', () => {
-    onResize();
-});
-
-function onResize() {
-    arSource.onResizeElement();
-    arSource.copyElementSizeTo(renderer.domElement);
-    if (arContext.arController !== null) {
-        arSource.copyElementSizeTo(arContext.arController.canvas);
-    }
-}
-
-// AR Context
-const arContext = new THREEx.ArToolkitContext({
-    cameraParametersUrl: 'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/data/camera_para.dat',
-    detectionMode: 'mono'
-});
-
-arContext.init(() => {
-    camera.projectionMatrix.copy(arContext.getProjectionMatrix());
-});
-
-// Marker hinzufügen
-const markerRoot = new THREE.Group();
-scene.add(markerRoot);
-const arMarker = new THREEx.ArMarkerControls(arContext, markerRoot, {
-    type: 'pattern',
-    patternUrl: 'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/data/patt.hiro'
-});
-
-// Spielvariablen
+let scene, camera, renderer, arSource, arContext;
+const cards = [];
 const totalPairs = 6; // Anzahl der Paare
 let score = 0;
 let firstCard = null;
@@ -68,42 +13,96 @@ const scoreElement = document.getElementById('score');
 const messageElement = document.getElementById('message');
 const restartButton = document.getElementById('restart');
 
-// Kartenbilder laden
-const cardImages = [];
-for (let i = 1; i <= totalPairs; i++) {
-    cardImages.push(`assets/images/card${i}.png`);
+// Initialisiere die Szene, Kamera und Renderer
+function initThreeJS() {
+    scene = new THREE.Scene();
+
+    camera = new THREE.Camera();
+    scene.add(camera);
+
+    renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.getElementById('threejs-container').appendChild(renderer.domElement);
+
+    // AR.js Initialisierung
+    arSource = new THREEx.ArToolkitSource({
+        sourceType: 'webcam',
+        sourceWidth: 640,
+        sourceHeight: 480
+    });
+
+    arSource.init(() => {
+        onResize();
+        // Starte AR Context
+        initARContext();
+    });
+
+    window.addEventListener('resize', onResize);
 }
 
-// Kartenpaar erstellen und mischen
-let deck = [];
-cardImages.forEach(img => {
-    deck.push(img);
-    deck.push(img);
-});
-deck = shuffle(deck);
+// Initialisiere den AR-Kontext
+function initARContext() {
+    arContext = new THREEx.ArToolkitContext({
+        cameraParametersUrl: 'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/data/camera_para.dat',
+        detectionMode: 'mono'
+    });
+
+    arContext.init(() => {
+        camera.projectionMatrix.copy(arContext.getProjectionMatrix());
+    });
+
+    // Marker hinzufügen
+    const markerRoot = new THREE.Group();
+    scene.add(markerRoot);
+    const arMarker = new THREEx.ArMarkerControls(arContext, markerRoot, {
+        type: 'pattern',
+        patternUrl: 'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/data/patt.hiro'
+    });
+
+    // Erstelle Karten
+    createCards();
+}
 
 // Karten erstellen und platzieren
-const cards = [];
-const gridSize = 3; // 3x4 Gitter (6 Paare = 12 Karten)
-const spacing = 1.5;
-const geometry = new THREE.PlaneGeometry(1, 1.5);
+function createCards() {
+    const cardImages = [];
+    for (let i = 1; i <= totalPairs; i++) {
+        cardImages.push(`assets/images/card${i}.png`);
+    }
 
-deck.forEach((img, index) => {
-    const texture = new THREE.TextureLoader().load('assets/images/back.png');
-    const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
-    const card = new THREE.Mesh(geometry, material);
-    const row = Math.floor(index / gridSize);
-    const col = index % gridSize;
-    card.position.set((col - (gridSize - 1) / 2) * spacing, (row - 1) * spacing, 0);
-    card.userData = { img, flipped: false, matched: false };
-    scene.add(card);
-    cards.push(card);
-});
+    // Kartenpaar erstellen und mischen
+    let deck = [];
+    cardImages.forEach(img => {
+        deck.push(img);
+        deck.push(img);
+    });
+    deck = shuffle(deck);
 
-// Rückseite der Karten vorbereiten
-const backTexture = new THREE.TextureLoader().load('assets/images/back.png');
+    // Karten erstellen und platzieren
+    const gridCols = 3; // Anzahl der Spalten
+    const gridRows = Math.ceil(deck.length / gridCols);
+    const spacingX = 1.5;
+    const spacingY = 1.5;
+    const geometry = new THREE.PlaneGeometry(1, 1.5);
 
-// Funktion zum Mischen
+    deck.forEach((img, index) => {
+        const texture = new THREE.TextureLoader().load('assets/images/back.png');
+        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
+        const card = new THREE.Mesh(geometry, material);
+        const row = Math.floor(index / gridCols);
+        const col = index % gridCols;
+        card.position.set((col - (gridCols - 1) / 2) * spacingX, (row - (gridRows - 1) / 2) * spacingY, 0);
+        card.userData = { img, flipped: false, matched: false };
+        scene.add(card);
+        cards.push(card);
+    });
+}
+
+// Funktion zum Mischen der Karten
 function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -143,8 +142,8 @@ function checkForMatch() {
         setTimeout(() => {
             firstCard.userData.flipped = false;
             secondCard.userData.flipped = false;
-            firstCard.material.map = backTexture;
-            secondCard.material.map = backTexture;
+            firstCard.material.map = new THREE.TextureLoader().load('assets/images/back.png');
+            secondCard.material.map = new THREE.TextureLoader().load('assets/images/back.png');
             resetBoard();
         }, 1000);
     }
@@ -174,22 +173,6 @@ restartButton.addEventListener('click', () => {
     location.reload();
 });
 
-// Klick-Interaktion (optional, kann beibehalten werden)
-renderer.domElement.addEventListener('click', (event) => {
-    const mouse = new THREE.Vector2();
-    mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
-    mouse.y = - (event.clientY / renderer.domElement.clientHeight) * 2 + 1;
-
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(cards);
-
-    if (intersects.length > 0) {
-        const selectedCard = intersects[0].object;
-        flipCard(selectedCard);
-    }
-}, false);
-
 // Render-Schleife
 function animate() {
     requestAnimationFrame(animate);
@@ -198,4 +181,5 @@ function animate() {
     arContext.update(arSource.domElement);
     renderer.render(scene, camera);
 }
+initThreeJS();
 animate();
