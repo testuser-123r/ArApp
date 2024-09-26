@@ -1,4 +1,4 @@
-// js/main.js
+
 
 let scene, camera, renderer, arSource, arContext;
 const cards = [];
