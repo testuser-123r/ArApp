@@ -1,4 +1,3 @@
-// js/handDetection.js
 
 let detector;
 const videoElement = arSource ? arSource.domElement : null; // Verwende arSource.domElement
