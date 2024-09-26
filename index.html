@@ -2,24 +2,25 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>AR Anwendung mit A-Frame und AR.js</title>
+  <title>WebXR AR Anwendung</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- A-Frame Bibliothek -->
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  <!-- AR.js für A-Frame -->
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+  <!-- XRExtras Bibliothek für erweiterte AR-Funktionen -->
+  <script src="https://unpkg.com/aframe-xrextras@1.0.5/dist/aframe-xrextras.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; }
     #info {
       position: absolute;
       top: 10px;
       left: 10px;
-      background: rgba(255,255,255,0.8);
+      background: rgba(255, 255, 255, 0.8);
       padding: 10px;
       border-radius: 5px;
       z-index: 1;
       font-family: Arial, sans-serif;
     }
+    a-scene { width: 100%; height: 100vh; }
   </style>
 </head>
 <body>
@@ -29,11 +30,14 @@
     <p>Tippe auf den Bildschirm, um ein Objekt zu platzieren.</p>
   </div>
   
-  <!-- A-Frame Szene mit AR.js Konfiguration -->
-  <a-scene
-    embedded
-    arjs="sourceType: webcam; trackingMethod: best; debugUIEnabled: false;"
+  <!-- A-Frame Szene mit XRExtras Konfiguration -->
+  <a-scene 
+    xrweb
     renderer="logarithmicDepthBuffer: true; antialias: true;"
+    embedded
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+    xrextras-hittest="target: #object-container"
   >
     <!-- Kamera -->
     <a-entity camera></a-entity>
@@ -42,61 +46,30 @@
     <a-entity light="type: ambient; color: #ffffff"></a-entity>
     <a-entity light="type: directional; color: #ffffff; intensity: 0.5" position="1 1 0"></a-entity>
 
-    <!-- Virtuelle Bodenebene -->
-    <a-plane position="0 0 -5" rotation="-90 0 0" width="100" height="100" color="#7BC8A4" id="ground"></a-plane>
-
     <!-- Container für platzierte Objekte -->
     <a-entity id="object-container"></a-entity>
   </a-scene>
 
   <script>
-    /**
-     * Funktion zum Platzieren von Objekten
-     * @param {Event} evt - Das Klick- oder Touch-Event
-     */
-    function placeObject(evt) {
-      const sceneEl = document.querySelector('a-scene');
-      const objectContainer = document.getElementById('object-container');
-      const cameraEl = sceneEl.camera.el;
-      const camera = sceneEl.camera;
-
-      // Bestimmen der Klick- oder Touch-Position
-      const mouse = new THREE.Vector2();
-      if (evt.touches && evt.touches.length > 0) {
-        mouse.x = (evt.touches[0].clientX / window.innerWidth) * 2 - 1;
-        mouse.y = - (evt.touches[0].clientY / window.innerHeight) * 2 + 1;
-      } else {
-        mouse.x = (evt.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = - (evt.clientY / window.innerHeight) * 2 + 1;
-      }
-
-      // Raycaster für die Ermittlung der Schnittpunkte
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(mouse, camera);
-
-      // Suche nach Schnittpunkten mit der Bodenebene
-      const ground = document.getElementById('ground');
-      const groundObject3D = ground.object3D;
-      const intersects = raycaster.intersectObject(groundObject3D, true);
-
-      if (intersects.length > 0) {
-        const point = intersects[0].point;
-        createBox(point);
-      } else {
-        // Platzieren vor der Kamera, wenn keine Schnittpunkte gefunden wurden
-        const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-        const position = new THREE.Vector3().copy(camera.position).add(direction.multiplyScalar(1));
-        createBox(position);
+    // Funktion zum Platzieren von Objekten bei einem Treffer im Hit-Test
+    function onHitTestResult(evt) {
+      const hitTestResults = evt.detail.results;
+      if (hitTestResults.length > 0) {
+        const hitPose = hitTestResults[0].getPose();
+        if (hitPose) {
+          const position = hitPose.transform.position;
+          createBox(position);
+        }
       }
     }
 
     /**
      * Funktion zum Erstellen und Hinzufügen eines Box-Objekts zur Szene
-     * @param {THREE.Vector3} position - Die Position, an der das Objekt platziert werden soll
+     * @param {Object} position - Die Position, an der das Objekt platziert werden soll
      */
     function createBox(position) {
       const box = document.createElement('a-box');
-      box.setAttribute('position', position);
+      box.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
       box.setAttribute('rotation', '0 45 0');
       box.setAttribute('color', '#4CC3D9');
       box.setAttribute('depth', '0.5');
@@ -108,11 +81,13 @@
 
     // Event Listener für Klick oder Touch auf die Szene
     const scene = document.querySelector('a-scene');
-    scene.addEventListener('click', placeObject);
-    scene.addEventListener('touchend', placeObject);
+    scene.addEventListener('click', function (evt) {
+      // Trigger den Hit-Test
+      scene.emit('xrextras-hittest-start', {});
+    });
+
+    // Event Listener für Hit-Test Ergebnisse
+    scene.addEventListener('xrextras-hittest-results', onHitTestResult);
   </script>
 </body>
 </html>
-
-
-
