@@ -2,16 +2,14 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>AR Memory Puzzle mit Handgesten</title>
+    <title>AR Memory Puzzle mit Hiro Marker</title>
     <link rel="stylesheet" href="css/styles.css">
     <!-- Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- AR.js -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.js"></script>
-    <!-- TensorFlow.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
-    <!-- Hand-Pose-Detection Modell -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection"></script>
+    <!-- Tween.js für Animationen (optional) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
 </head>
 <body>
     <div id="score">Punkte: 0</div>
@@ -23,6 +21,5 @@
     
     <!-- Haupt-JavaScript-Dateien -->
     <script src="js/main.js"></script>
-    <script src="js/handDetection.js"></script>
 </body>
 </html>
