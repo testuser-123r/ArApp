@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Einfaches AR mit WebXR</title>
+    <title>Einfache AR mit WebXR</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,7 +12,11 @@
         <button data-obj="box">Box</button>
         <button data-obj="sphere">Sphere</button>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Three.js Bibliothek -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r150/three.min.js"></script>
+    <!-- Drei.js GLTF Loader (falls benötigt) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r150/examples/js/loaders/GLTFLoader.js"></script>
+    <!-- App Skript -->
     <script src="app.js"></script>
 </body>
 </html>
