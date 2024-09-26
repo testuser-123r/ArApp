@@ -2,7 +2,6 @@ let camera, scene, renderer;
 let controller;
 let reticle;
 let hitTestSource = null;
-let hitTestSourceRequested = false;
 let selectedObject = 'box'; // Standardobjekt
 let arSession = null;
 
@@ -38,29 +37,35 @@ function init() {
     controller.addEventListener('select', onSelect);
     scene.add(controller);
 
-    // UI-Buttons
+    // UI-Buttons zur Objektauswahl
     const buttons = document.querySelectorAll('#ui button');
     buttons.forEach(button => {
         button.addEventListener('click', () => {
             selectedObject = button.getAttribute('data-obj');
+            console.log(`Ausgewähltes Objekt: ${selectedObject}`);
         });
     });
+
+    // "Start AR" Button einrichten
+    const startButton = document.getElementById('start-ar');
+    startButton.addEventListener('click', startAR);
 
     // Überprüfen, ob WebXR AR unterstützt wird
     if (navigator.xr) {
         navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
             if (supported) {
-                // Füge einen Event-Listener hinzu, der die AR-Sitzung beim ersten Klick startet
-                document.body.addEventListener('click', startAR, { once: true });
-                document.body.addEventListener('touchstart', startAR, { once: true });
+                console.log("WebXR AR wird unterstützt.");
+                startButton.style.display = 'block';
             } else {
                 alert('AR wird auf diesem Gerät nicht unterstützt.');
+                console.error("AR wird auf diesem Gerät nicht unterstützt.");
             }
         }).catch((err) => {
             console.error("Fehler beim Prüfen der Session-Unterstützung:", err);
         });
     } else {
         alert('WebXR wird von diesem Browser nicht unterstützt.');
+        console.error("WebXR wird von diesem Browser nicht unterstützt.");
     }
 
     // Fenstergröße anpassen
@@ -68,7 +73,8 @@ function init() {
 }
 
 function startAR() {
-    navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['hit-test'] })
+    console.log("Versuche, AR-Sitzung zu starten...");
+    navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['hit-test'], optionalFeatures: ['dom-overlay'], domOverlay: { root: document.body } })
         .then(onSessionStarted)
         .catch((err) => {
             console.error("AR Session konnte nicht gestartet werden:", err);
@@ -77,13 +83,17 @@ function startAR() {
 }
 
 function onSessionStarted(session) {
+    console.log("AR Session gestartet.");
     arSession = session;
     renderer.xr.setSession(session);
     reticle.visible = false;
 
     // Referenzraum anfordern
-    session.requestReferenceSpace('local').then((refSpace) => {
+    session.requestReferenceSpace('local-floor').then((refSpace) => {
         renderer.xr.setReferenceSpace(refSpace);
+        console.log("Reference Space auf 'local-floor' gesetzt.");
+    }).catch((err) => {
+        console.error("Fehler beim Anfordern des Reference Space:", err);
     });
 
     // Hit-Test-Quelle anfordern
@@ -91,6 +101,7 @@ function onSessionStarted(session) {
         return session.requestHitTestSource({ space: viewerRefSpace });
     }).then((source) => {
         hitTestSource = source;
+        console.log("Hit-Test Source angefordert.");
     }).catch((err) => {
         console.error("Hit-Test Source konnte nicht angefordert werden:", err);
     });
@@ -98,6 +109,7 @@ function onSessionStarted(session) {
     // Sitzung beenden
     session.addEventListener('end', () => {
         hitTestSource = null;
+        console.log("AR Session beendet.");
     });
 }
 
@@ -115,6 +127,7 @@ function onSelect() {
         mesh.position.copy(reticle.position);
         mesh.quaternion.copy(reticle.quaternion);
         scene.add(mesh);
+        console.log(`${selectedObject} hinzugefügt an Position:`, mesh.position);
     }
 }
 
@@ -146,5 +159,3 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
-
-
