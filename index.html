@@ -95,6 +95,25 @@
         const lowerBound = -1; // Untere Grenze für das Spielende
         let animationFrameId;
 
+        // Definiere die drei festen Startpositionen
+        const spawnPositions = [
+            { x: 0, y: 1, z: 0 },   // Mitte oben
+            { x: -1, y: 1, z: 0 },  // Links oben
+            { x: 1, y: 1, z: 0 }    // Rechts oben
+        ];
+
+        // Funktion zum zufälligen Spawn des Balls
+        function spawnBall() {
+            // Wähle zufällig eine der drei Positionen
+            const spawnPos = spawnPositions[Math.floor(Math.random() * spawnPositions.length)];
+            ball.setAttribute('position', spawnPos);
+            ball.setAttribute('visible', 'true');
+            ballVelocity = -0.05; // Setze die Fallgeschwindigkeit zurück
+            // Starte die Ball-Animation
+            cancelAnimationFrame(animationFrameId); // Stelle sicher, dass keine vorherige Animation läuft
+            updateBall();
+        }
+
         // Funktion zum Aktualisieren des Balls
         function updateBall() {
             if (gameOver) return;
@@ -120,9 +139,9 @@
             score += 1;
             scoreElement.innerText = 'Punkte: ' + score;
 
-            // Nach kurzer Zeit wieder fallen lassen
+            // Nach kurzer Zeit den Ball wieder spawnen lassen
             setTimeout(() => {
-                ballVelocity = -0.05;
+                spawnBall();
             }, 300);
         }
 
@@ -141,11 +160,9 @@
             scoreElement.innerText = 'Punkte: 0';
             gameOver = false;
             gameOverElement.style.display = 'none';
-            ball.setAttribute('position', '0 1 0');
-            ballVelocity = -0.05;
             instructions.style.display = 'none';
-            ball.setAttribute('visible', 'true');
-            updateBall();
+            // Spawn den Ball an einer zufälligen Position
+            spawnBall();
         }
 
         // Event Listener für das Schlagen des Balls
@@ -156,10 +173,8 @@
         marker.addEventListener('markerFound', () => {
             console.log('Hiro Marker gefunden');
             instructions.style.display = 'none';
-            // Zeige den Ball
-            ball.setAttribute('visible', 'true');
-            // Startet das Fallen sofort
-            updateBall();
+            // Spawn den Ball an einer zufälligen Position
+            spawnBall();
         });
 
         // Marker verloren
