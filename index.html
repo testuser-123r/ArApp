@@ -78,8 +78,8 @@
             <!-- Optional: Weitere Marker-basierte Objekte hier hinzufügen -->
         </a-marker>
 
-        <!-- Ball (initial unsichtbar und außerhalb des Markers) -->
-        <a-sphere id="ball" class="clickable" position="0 5 0" radius="0.2" color="#FF0000" visible="false"></a-sphere>
+        <!-- Ball (initial unsichtbar und unabhängig vom Marker) -->
+        <a-sphere id="ball" class="clickable" position="0 5 -2" radius="0.3" color="#FF0000" visible="false"></a-sphere>
 
         <!-- Licht -->
         <a-entity light="type: ambient; color: #BBB"></a-entity>
@@ -99,9 +99,9 @@
 
         // Definiere die drei festen Startpositionen (Mitte, links, rechts)
         const spawnPositions = [
-            { x: 0, y: 5, z: 0 },    // Mitte oben
-            { x: -1, y: 5, z: 0 },   // Links oben
-            { x: 1, y: 5, z: 0 }     // Rechts oben
+            { x: 0, y: 5, z: -2 },    // Mitte oben, vor dem Marker
+            { x: -1, y: 5, z: -2 },   // Links oben
+            { x: 1, y: 5, z: -2 }     // Rechts oben
         ];
 
         // Funktion zum zufälligen Spawn des Balls
@@ -193,4 +193,3 @@
     </script>
 </body>
 </html>
-
