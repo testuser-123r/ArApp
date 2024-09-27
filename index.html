@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>AR Ball Game</title>
+    <title>AR Ball Spiel</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- A-Frame Library -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
@@ -30,21 +30,45 @@
             font-family: Arial, sans-serif;
             display: none;
             z-index: 1;
+            text-align: center;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
+            color: white;
+            font-family: Arial, sans-serif;
+            z-index: 1;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin-top: 20px;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
     <div id="score">Punkte: 0</div>
-    <div id="game-over">Spiel Vorbei!<br><button onclick="restartGame()">Neu Starten</button></div>
+    <div id="game-over">
+        Spiel Vorbei!<br>
+        <button onclick="restartGame()">Neu Starten</button>
+    </div>
+    <div id="instructions">
+        Zeige den Hiro Marker vor die Kamera, um das Spiel zu starten.
+    </div>
 
     <a-scene embedded arjs>
         <!-- Kamera -->
-        <a-camera-static></a-camera-static>
+        <a-camera></a-camera>
 
         <!-- Hiro Marker -->
-        <a-marker type="pattern" url="https://raw.githubusercontent.com/AR-js-org/AR.js/master/three.js/data/data/patt.hiro">
-            <!-- Ball -->
-            <a-sphere id="ball" position="0 0.5 0" radius="0.1" color="blue"></a-sphere>
+        <a-marker type="pattern" url="https://raw.githubusercontent.com/AR-js-org/AR.js/master/three.js/data/data/patt.hiro" id="hiro-marker">
+            <!-- Ball (initial unsichtbar) -->
+            <a-sphere id="ball" position="0 1 0" radius="0.2" color="#FF0000" visible="false"></a-sphere>
         </a-marker>
 
         <!-- Licht -->
@@ -57,10 +81,13 @@
         let gameOver = false;
         const scoreElement = document.getElementById('score');
         const gameOverElement = document.getElementById('game-over');
+        const instructions = document.getElementById('instructions');
         const ball = document.querySelector('#ball');
-        let ballVelocity = -0.02; // Negative Wert, damit der Ball fällt
+        let ballVelocity = 0; // Startet mit 0
         const lowerBound = -1; // Untere Grenze für das Spielende
+        let animationFrameId;
 
+        // Funktion zum Aktualisieren des Balls
         function updateBall() {
             if (gameOver) return;
 
@@ -75,42 +102,74 @@
                 return;
             }
 
-            requestAnimationFrame(updateBall);
+            animationFrameId = requestAnimationFrame(updateBall);
         }
 
+        // Funktion zum Schlagen des Balls
         function hitBall() {
             if (gameOver) return;
-            ballVelocity = 0.02; // Ball nach oben bewegen
+            ballVelocity = 0.05; // Ball nach oben bewegen
             score += 1;
             scoreElement.innerText = 'Punkte: ' + score;
 
             // Nach kurzer Zeit wieder fallen lassen
             setTimeout(() => {
-                ballVelocity = -0.02;
-            }, 200);
+                ballVelocity = -0.05;
+            }, 300);
         }
 
+        // Funktion zum Beenden des Spiels
         function endGame() {
             gameOver = true;
             gameOverElement.style.display = 'block';
+            cancelAnimationFrame(animationFrameId);
         }
 
+        // Funktion zum Neustarten des Spiels
         function restartGame() {
             // Reset Spielstatus
             score = 0;
             scoreElement.innerText = 'Punkte: 0';
             gameOver = false;
             gameOverElement.style.display = 'none';
-            ball.setAttribute('position', '0 0.5 0');
-            ballVelocity = -0.02;
+            ball.setAttribute('position', '0 1 0');
+            ballVelocity = -0.05;
+            instructions.style.display = 'none';
+            ball.setAttribute('visible', 'true');
             updateBall();
         }
 
         // Event Listener für das Schlagen des Balls
         ball.addEventListener('click', hitBall);
 
-        // Start des Spiels
-        updateBall();
+        // Marker erkannt
+        const marker = document.querySelector('#hiro-marker');
+        marker.addEventListener('markerFound', () => {
+            console.log('Hiro Marker gefunden');
+            instructions.style.display = 'none';
+            // Zeige den Ball
+            ball.setAttribute('visible', 'true');
+            // Startet das Fallen nach 3 Sekunden
+            setTimeout(() => {
+                if (!gameOver) {
+                    ballVelocity = -0.05;
+                    updateBall();
+                }
+            }, 3000);
+        });
+
+        // Marker verloren
+        marker.addEventListener('markerLost', () => {
+            console.log('Hiro Marker verloren');
+            // Optional: Spiel beenden, wenn Marker verloren geht
+            if (!gameOver) {
+                endGame();
+            }
+        });
+
+        // Initialer Zustand
+        ball.setAttribute('visible', 'false');
     </script>
 </body>
 </html>
+
