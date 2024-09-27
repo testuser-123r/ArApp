@@ -62,13 +62,21 @@
     </div>
 
     <a-scene embedded arjs>
-        <!-- Kamera -->
-        <a-camera></a-camera>
+        <!-- Kamera mit Cursor -->
+        <a-camera>
+            <a-cursor 
+                fuse="false" 
+                raycaster="objects: .clickable"
+                position="0 0 -1"
+                geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02"
+                material="color: white; shader: flat">
+            </a-cursor>
+        </a-camera>
 
         <!-- Hiro Marker -->
         <a-marker type="pattern" url="patt.hiro" id="hiro-marker">
             <!-- Ball (initial unsichtbar) -->
-            <a-sphere id="ball" position="0 1 0" radius="0.2" color="#FF0000" visible="false"></a-sphere>
+            <a-sphere id="ball" class="clickable" position="0 1 0" radius="0.2" color="#FF0000" visible="false"></a-sphere>
         </a-marker>
 
         <!-- Licht -->
@@ -83,7 +91,7 @@
         const gameOverElement = document.getElementById('game-over');
         const instructions = document.getElementById('instructions');
         const ball = document.querySelector('#ball');
-        let ballVelocity = 0; // Startet mit 0
+        let ballVelocity = -0.05; // Startet mit fallender Geschwindigkeit
         const lowerBound = -1; // Untere Grenze für das Spielende
         let animationFrameId;
 
@@ -123,6 +131,7 @@
             gameOver = true;
             gameOverElement.style.display = 'block';
             cancelAnimationFrame(animationFrameId);
+            ball.setAttribute('visible', 'false');
         }
 
         // Funktion zum Neustarten des Spiels
@@ -149,13 +158,8 @@
             instructions.style.display = 'none';
             // Zeige den Ball
             ball.setAttribute('visible', 'true');
-            // Startet das Fallen nach 3 Sekunden
-            setTimeout(() => {
-                if (!gameOver) {
-                    ballVelocity = -0.05;
-                    updateBall();
-                }
-            }, 3000);
+            // Startet das Fallen sofort
+            updateBall();
         });
 
         // Marker verloren
