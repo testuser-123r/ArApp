@@ -76,7 +76,7 @@
         const startZ = -4; // Etwas weiter von der Kamera entfernt
 
         ball.setAttribute('position', `${startX} ${startY} ${startZ}`);
-        ball.setAttribute('visible', 'true');
+        ball.setAttribute('visible', 'true'); // Ball wird sichtbar
         isBallFlying = false;
         ballVelocity.set(0, 0, 0);
         animateBall();
@@ -131,24 +131,26 @@
       function handleCollision() {
         if (!isBallFlying) {
           isBallFlying = true;
-          // Setze eine zufällige Geschwindigkeit für den Ball
+          // Punkte erhöhen
+          score += 1;
+          scoreboard.innerText = 'Punkte: ' + score;
+
+          // Ball ausblenden und Animation stoppen
+          ball.setAttribute('visible', 'false');
           ballVelocity.set(
             (Math.random() - 0.5) * 0.05,
             0.1 + Math.random() * 0.05,
             (Math.random() - 0.5) * 0.05
           );
-          score += 1;
-          scoreboard.innerText = 'Punkte: ' + score;
-          // Verstecke den Ball nach der Kollision
-          ball.setAttribute('visible', 'false');
-          // Nach kurzer Verzögerung einen neuen Ball fallen lassen
+
+          // Nach einer kurzen Verzögerung einen neuen Ball fallen lassen
           setTimeout(dropBall, 1000);
         }
       }
 
       function resetBall() {
         ball.setAttribute('visible', 'false');
-        setTimeout(dropBall, 1000);
+        setTimeout(dropBall, 1000); // Nach einer Sekunde den Ball erneut fallen lassen
       }
 
       // Event listener für Klick auf den Ball
@@ -165,3 +167,4 @@
     </script>
   </body>
 </html>
+
