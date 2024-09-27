@@ -2,14 +2,14 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Falling Ball Game Optimized</title>
+    <title>Falling Ball AR-Spiel Optimiert</title>
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no"
     />
     <!-- A-Frame Library -->
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <!-- AR.js for A-Frame -->
+    <!-- AR.js für A-Frame -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
     <style>
       body {
@@ -31,7 +31,12 @@
     <div id="scoreboard">Punkte: 0</div>
     <a-scene
       embedded
-      arjs="sourceType: webcam; debugUIEnabled: true;" <!-- Debug UI aktiviert für Fehlersuche -->
+      arjs="
+        sourceType: webcam;
+        debugUIEnabled: true;
+        trackingBackend: artoolkit;
+        markersAreaEnabled: true;
+      "
       vr-mode-ui="enabled: false"
     >
       <!-- Hiro Marker -->
@@ -39,7 +44,7 @@
         <!-- Ball -->
         <a-sphere
           id="ball"
-          position="0 2 0"
+          position="0 3 0" <!-- Startposition höher setzen -->
           radius="0.3"
           color="#EF2D5E"
           shadow
@@ -70,8 +75,8 @@
 
       function dropBall() {
         // Zufällige Startposition (links oder rechts innerhalb des Markers)
-        const startX = Math.random() < 0.5 ? -2 : 2;
-        const startY = 3; // Höhe über dem Marker
+        const startX = Math.random() < 0.5 ? -1.5 : 1.5;
+        const startY = 5; // Höhere Startposition
         const startZ = 0;
 
         ball.setAttribute('position', `${startX} ${startY} ${startZ}`);
@@ -191,6 +196,4 @@
       });
     </script>
   </body>
-</html>
-
 </html>
