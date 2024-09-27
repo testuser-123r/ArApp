@@ -1,94 +1,116 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <title>AR Anwendung mit A-Frame und WebXR Hit-Test</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <!-- A-Frame Bibliothek -->
-  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  
-  <!-- aframe-xrextras Bibliothek für Hit-Test Unterstützung -->
-  <script src="https://unpkg.com/aframe-xrextras@1.0.6/dist/aframe-xrextras.min.js"></script>
-  
-  <style>
-    body { margin: 0; overflow: hidden; }
-    #info {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(255,255,255,0.8);
-      padding: 10px;
-      border-radius: 5px;
-      z-index: 1;
-      font-family: Arial, sans-serif;
-    }
-    a-scene { width: 100%; height: 100vh; }
-  </style>
+    <meta charset="UTF-8">
+    <title>AR Ball Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- A-Frame Library -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <!-- AR.js Library -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        #score {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            color: white;
+            font-family: Arial, sans-serif;
+            z-index: 1;
+        }
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 36px;
+            color: red;
+            font-family: Arial, sans-serif;
+            display: none;
+            z-index: 1;
+        }
+    </style>
 </head>
 <body>
-  <!-- Informationsbereich -->
-  <div id="info">
-    <h3>AR Anwendung</h3>
-    <p>Tippe auf den Bildschirm, um ein Objekt zu platzieren.</p>
-  </div>
-  
-  <!-- A-Frame Szene mit aframe-xrextras Hit-Test Konfiguration -->
-  <a-scene
-    xrweb
-    xrextras-hittest
-    renderer="logarithmicDepthBuffer: true; antialias: true;"
-    embedded
-    vr-mode-ui="enabled: false"
-  >
-    <!-- Kamera -->
-    <a-entity camera></a-entity>
+    <div id="score">Punkte: 0</div>
+    <div id="game-over">Spiel Vorbei!<br><button onclick="restartGame()">Neu Starten</button></div>
 
-    <!-- Lichtquellen -->
-    <a-entity light="type: ambient; color: #ffffff"></a-entity>
-    <a-entity light="type: directional; color: #ffffff; intensity: 0.5" position="1 1 0"></a-entity>
+    <a-scene embedded arjs>
+        <!-- Kamera -->
+        <a-camera-static></a-camera-static>
 
-    <!-- Container für platzierte Objekte -->
-    <a-entity id="object-container"></a-entity>
-  </a-scene>
+        <!-- Hiro Marker -->
+        <a-marker type="pattern" url="https://raw.githubusercontent.com/AR-js-org/AR.js/master/three.js/data/data/patt.hiro">
+            <!-- Ball -->
+            <a-sphere id="ball" position="0 0.5 0" radius="0.1" color="blue"></a-sphere>
+        </a-marker>
 
-  <script>
-    /**
-     * Funktion zum Erstellen und Hinzufügen eines Box-Objekts zur Szene
-     * @param {THREE.Vector3} position - Die Position, an der das Objekt platziert werden soll
-     */
-    function createBox(position) {
-      const box = document.createElement('a-box');
-      box.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
-      box.setAttribute('rotation', '0 45 0');
-      box.setAttribute('color', '#4CC3D9');
-      box.setAttribute('depth', '0.2');   // Realistische Größe (0.2 Meter)
-      box.setAttribute('height', '0.2');  // Realistische Größe (0.2 Meter)
-      box.setAttribute('width', '0.2');   // Realistische Größe (0.2 Meter)
-      box.setAttribute('shadow', 'cast: true; receive: true');
-      document.getElementById('object-container').appendChild(box);
-    }
+        <!-- Licht -->
+        <a-entity light="type: ambient; color: #BBB"></a-entity>
+        <a-entity light="type: directional; intensity: 0.5" position="1 1 0"></a-entity>
+    </a-scene>
 
-    // Event Listener für Hit-Test Ergebnisse
-    document.querySelector('a-scene').addEventListener('xrextras-hittest-results', (evt) => {
-      const hitTestResults = evt.detail.results;
-      if (hitTestResults.length > 0) {
-        const hitPose = hitTestResults[0].getPose(document.querySelector('a-scene').renderer.xr.getReferenceSpace());
-        if (hitPose) {
-          const position = hitPose.transform.position;
-          createBox(position);
+    <script>
+        let score = 0;
+        let gameOver = false;
+        const scoreElement = document.getElementById('score');
+        const gameOverElement = document.getElementById('game-over');
+        const ball = document.querySelector('#ball');
+        let ballVelocity = -0.02; // Negative Wert, damit der Ball fällt
+        const lowerBound = -1; // Untere Grenze für das Spielende
+
+        function updateBall() {
+            if (gameOver) return;
+
+            // Aktuelle Position des Balls
+            let pos = ball.getAttribute('position');
+            pos.y += ballVelocity;
+            ball.setAttribute('position', pos);
+
+            // Prüfen, ob der Ball den unteren Bereich erreicht hat
+            if (pos.y < lowerBound) {
+                endGame();
+                return;
+            }
+
+            requestAnimationFrame(updateBall);
         }
-      }
-    });
 
-    // Event Listener für Klick oder Touch auf die Szene
-    document.querySelector('a-scene').addEventListener('click', () => {
-      document.querySelector('a-scene').emit('xrextras-hittest-start', {});
-    });
-    document.querySelector('a-scene').addEventListener('touchend', () => {
-      document.querySelector('a-scene').emit('xrextras-hittest-start', {});
-    });
-  </script>
+        function hitBall() {
+            if (gameOver) return;
+            ballVelocity = 0.02; // Ball nach oben bewegen
+            score += 1;
+            scoreElement.innerText = 'Punkte: ' + score;
+
+            // Nach kurzer Zeit wieder fallen lassen
+            setTimeout(() => {
+                ballVelocity = -0.02;
+            }, 200);
+        }
+
+        function endGame() {
+            gameOver = true;
+            gameOverElement.style.display = 'block';
+        }
+
+        function restartGame() {
+            // Reset Spielstatus
+            score = 0;
+            scoreElement.innerText = 'Punkte: 0';
+            gameOver = false;
+            gameOverElement.style.display = 'none';
+            ball.setAttribute('position', '0 0.5 0');
+            ballVelocity = -0.02;
+            updateBall();
+        }
+
+        // Event Listener für das Schlagen des Balls
+        ball.addEventListener('click', hitBall);
+
+        // Start des Spiels
+        updateBall();
+    </script>
 </body>
 </html>
-
