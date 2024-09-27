@@ -76,7 +76,7 @@
         <!-- Hiro Marker -->
         <a-marker type="pattern" url="Hiro.patt" id="hiro-marker">
             <!-- Ball (initial unsichtbar) -->
-            <a-sphere id="ball" class="clickable" position="0 1 0" radius="0.2" color="#FF0000" visible="false"></a-sphere>
+            <a-sphere id="ball" class="clickable" position="0 2 0" radius="0.2" color="#FF0000" visible="false"></a-sphere>
         </a-marker>
 
         <!-- Licht -->
@@ -91,15 +91,15 @@
         const gameOverElement = document.getElementById('game-over');
         const instructions = document.getElementById('instructions');
         const ball = document.querySelector('#ball');
-        let ballVelocity = -0.05; // Startet mit fallender Geschwindigkeit
-        const lowerBound = -1; // Untere Grenze für das Spielende
+        let ballVelocity = -0.02; // Startet mit fallender Geschwindigkeit (Y-Richtung)
+        const lowerBound = 0; // Untere Grenze für das Spielende (Y-Position)
         let animationFrameId;
 
         // Definiere die drei festen Startpositionen
         const spawnPositions = [
-            { x: 0, y: 1, z: 0 },   // Mitte oben
-            { x: -1, y: 1, z: 0 },  // Links oben
-            { x: 1, y: 1, z: 0 }    // Rechts oben
+            { x: 0, y: 2, z: 0 },    // Mitte oben
+            { x: -1, y: 2, z: 0 },   // Links oben
+            { x: 1, y: 2, z: 0 }     // Rechts oben
         ];
 
         // Funktion zum zufälligen Spawn des Balls
@@ -108,7 +108,7 @@
             const spawnPos = spawnPositions[Math.floor(Math.random() * spawnPositions.length)];
             ball.setAttribute('position', spawnPos);
             ball.setAttribute('visible', 'true');
-            ballVelocity = -0.05; // Setze die Fallgeschwindigkeit zurück
+            ballVelocity = -0.02; // Setze die Fallgeschwindigkeit zurück
             // Starte die Ball-Animation
             cancelAnimationFrame(animationFrameId); // Stelle sicher, dass keine vorherige Animation läuft
             updateBall();
@@ -135,11 +135,12 @@
         // Funktion zum Schlagen des Balls
         function hitBall() {
             if (gameOver) return;
-            ballVelocity = 0.05; // Ball nach oben bewegen
+            // Setze die Geschwindigkeit, sodass der Ball nach oben geht
+            ballVelocity = 0.02;
             score += 1;
             scoreElement.innerText = 'Punkte: ' + score;
 
-            // Nach kurzer Zeit den Ball wieder spawnen lassen
+            // Nach kurzer Zeit wieder fallen lassen
             setTimeout(() => {
                 spawnBall();
             }, 300);
@@ -160,7 +161,6 @@
             scoreElement.innerText = 'Punkte: 0';
             gameOver = false;
             gameOverElement.style.display = 'none';
-            instructions.style.display = 'none';
             // Spawn den Ball an einer zufälligen Position
             spawnBall();
         }
@@ -191,3 +191,4 @@
     </script>
 </body>
 </html>
+
