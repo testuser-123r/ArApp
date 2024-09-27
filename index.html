@@ -1,195 +1,199 @@
 <!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <title>AR Ball Spiel</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Falling Ball Game Optimized</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no"
+    />
     <!-- A-Frame Library -->
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <!-- AR.js Library -->
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <!-- AR.js for A-Frame -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; }
-        #score {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 24px;
-            color: white;
-            font-family: Arial, sans-serif;
-            z-index: 1;
-        }
-        #game-over {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 36px;
-            color: red;
-            font-family: Arial, sans-serif;
-            display: none;
-            z-index: 1;
-            text-align: center;
-        }
-        #instructions {
-            position: absolute;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 18px;
-            color: white;
-            font-family: Arial, sans-serif;
-            z-index: 1;
-            text-align: center;
-        }
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            margin-top: 20px;
-            cursor: pointer;
-        }
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      #scoreboard {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: #fff;
+        font-size: 24px;
+        z-index: 1;
+      }
     </style>
-</head>
-<body>
-    <div id="score">Punkte: 0</div>
-    <div id="game-over">
-        Spiel Vorbei!<br>
-        <button onclick="restartGame()">Neu Starten</button>
-    </div>
-    <div id="instructions">
-        Zeige den Hiro Marker vor die Kamera, um das Spiel zu starten.
-    </div>
+  </head>
+  <body>
+    <div id="scoreboard">Punkte: 0</div>
+    <a-scene
+      embedded
+      arjs="sourceType: webcam; debugUIEnabled: false;"
+      vr-mode-ui="enabled: false"
+    >
+      <!-- Ball -->
+      <a-sphere
+        id="ball"
+        position="0 2 -5"
+        radius="0.3"
+        color="#EF2D5E"
+        shadow
+      ></a-sphere>
 
-    <a-scene embedded arjs>
-        <!-- Kamera mit Cursor -->
-        <a-camera>
-            <a-cursor 
-                fuse="false" 
-                raycaster="objects: .clickable"
-                position="0 0 -1"
-                geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02"
-                material="color: white; shader: flat">
-            </a-cursor>
-        </a-camera>
+      <!-- Light Sources -->
+      <a-light type="ambient" color="#888"></a-light>
+      <a-light
+        type="directional"
+        intensity="0.5"
+        position="0 1 0"
+      ></a-light>
 
-        <!-- Hiro Marker -->
-        <a-marker type="pattern" url="Hiro.patt" id="hiro-marker">
-            <!-- Optional: Weitere Marker-basierte Objekte hier hinzufügen -->
-        </a-marker>
-
-        <!-- Ball (initial unsichtbar und unabhängig vom Marker) -->
-        <a-sphere id="ball" class="clickable" position="0 5 -2" radius="0.3" color="#FF0000" visible="false"></a-sphere>
-
-        <!-- Licht -->
-        <a-entity light="type: ambient; color: #BBB"></a-entity>
-        <a-entity light="type: directional; intensity: 0.5" position="1 1 0"></a-entity>
+      <!-- Camera -->
+      <a-camera-static></a-camera-static>
     </a-scene>
 
     <script>
-        let score = 0;
-        let gameOver = false;
-        const scoreElement = document.getElementById('score');
-        const gameOverElement = document.getElementById('game-over');
-        const instructions = document.getElementById('instructions');
-        const ball = document.querySelector('#ball');
-        let ballVelocity = -0.02; // Startet mit fallender Geschwindigkeit (Y-Richtung)
-        const lowerBound = -1; // Untere Grenze für das Spielende (Y-Position)
-        let animationFrameId;
+      let score = 0;
+      let gameOver = false;
+      const ball = document.getElementById('ball');
+      const scoreboard = document.getElementById('scoreboard');
+      const camera = document.querySelector('a-camera-static');
 
-        // Definiere die drei festen Startpositionen (Mitte, links, rechts)
-        const spawnPositions = [
-            { x: 0, y: 5, z: -2 },    // Mitte oben, vor dem Marker
-            { x: -1, y: 5, z: -2 },   // Links oben
-            { x: 1, y: 5, z: -2 }     // Rechts oben
-        ];
+      let ballVelocity = new THREE.Vector3();
+      let isBallFlying = false;
 
-        // Funktion zum zufälligen Spawn des Balls
-        function spawnBall() {
-            // Wähle zufällig eine der drei Positionen
-            const spawnPos = spawnPositions[Math.floor(Math.random() * spawnPositions.length)];
-            ball.setAttribute('position', spawnPos);
-            ball.setAttribute('visible', 'true');
-            ballVelocity = -0.02; // Setze die Fallgeschwindigkeit zurück
-            // Starte die Ball-Animation
-            cancelAnimationFrame(animationFrameId); // Stelle sicher, dass keine vorherige Animation läuft
-            updateBall();
-        }
+      function dropBall() {
+        // Zufällige Startposition (links oder rechts)
+        const startX = Math.random() < 0.5 ? -5 : 5;
+        const startY = Math.random() * 2 + 1; // Höhe zwischen 1 und 3
+        const startZ = -5;
 
-        // Funktion zum Aktualisieren des Balls
-        function updateBall() {
-            if (gameOver) return;
+        ball.setAttribute('position', `${startX} ${startY} ${startZ}`);
+        ball.object3D.position.set(startX, startY, startZ);
+        ball.setAttribute('visible', 'true');
+        gameOver = false;
+        isBallFlying = false;
+        ballVelocity.set(0, 0, 0);
+        animateBall();
+      }
 
-            // Aktuelle Position des Balls
-            let pos = ball.getAttribute('position');
-            pos.y += ballVelocity;
-            ball.setAttribute('position', pos);
+      function animateBall() {
+        const speed = 0.02;
 
-            // Prüfen, ob der Ball den unteren Bereich erreicht hat
-            if (pos.y < lowerBound) {
-                endGame();
-                return;
+        // Richtung zum Spieler (Kamera) berechnen
+        const ballPos = new THREE.Vector3();
+        ball.object3D.getWorldPosition(ballPos);
+
+        const cameraPos = new THREE.Vector3();
+        camera.object3D.getWorldPosition(cameraPos);
+
+        const direction = new THREE.Vector3();
+        direction.subVectors(cameraPos, ballPos).normalize().multiplyScalar(speed);
+
+        function moveBall() {
+          if (!gameOver) {
+            if (!isBallFlying) {
+              ball.object3D.position.add(direction);
+            } else {
+              // Ball bewegt sich nach oben (wenn getroffen)
+              ball.object3D.position.add(ballVelocity);
+              ballVelocity.multiplyScalar(0.98); // Verlangsamt den Ball
             }
 
-            animationFrameId = requestAnimationFrame(updateBall);
-        }
+            // Überprüfe, ob der Ball nahe genug ist
+            const currentBallPos = new THREE.Vector3();
+            ball.object3D.getWorldPosition(currentBallPos);
 
-        // Funktion zum Schlagen des Balls
-        function hitBall() {
-            if (gameOver) return;
-            // Setze die Geschwindigkeit, sodass der Ball nach oben geht
-            ballVelocity = 0.02;
-            score += 1;
-            scoreElement.innerText = 'Punkte: ' + score;
+            const distance = currentBallPos.distanceTo(cameraPos);
 
-            // Nach kurzer Zeit wieder fallen lassen
-            setTimeout(() => {
-                spawnBall();
-            }, 300);
-        }
-
-        // Funktion zum Beenden des Spiels
-        function endGame() {
-            gameOver = true;
-            gameOverElement.style.display = 'block';
-            cancelAnimationFrame(animationFrameId);
-            ball.setAttribute('visible', 'false');
-        }
-
-        // Funktion zum Neustarten des Spiels
-        function restartGame() {
-            // Reset Spielstatus
-            score = 0;
-            scoreElement.innerText = 'Punkte: 0';
-            gameOver = false;
-            gameOverElement.style.display = 'none';
-            // Spawn den Ball an einer zufälligen Position
-            spawnBall();
-        }
-
-        // Event Listener für das Schlagen des Balls
-        ball.addEventListener('click', hitBall);
-
-        // Marker erkannt
-        const marker = document.querySelector('#hiro-marker');
-        marker.addEventListener('markerFound', () => {
-            console.log('Hiro Marker gefunden');
-            instructions.style.display = 'none';
-            // Spawn den Ball an einer zufälligen Position
-            spawnBall();
-        });
-
-        // Marker verloren
-        marker.addEventListener('markerLost', () => {
-            console.log('Hiro Marker verloren');
-            // Optional: Spiel beenden, wenn Marker verloren geht
-            if (!gameOver) {
-                endGame();
+            if (distance < 1 && !isBallFlying) {
+              handleCollision();
             }
-        });
 
-        // Initialer Zustand
-        ball.setAttribute('visible', 'false');
+            // Überprüfe, ob der Ball außerhalb des Sichtfelds ist
+            if (currentBallPos.z < 1 && currentBallPos.y > -1 && currentBallPos.y < 5) {
+              requestAnimationFrame(moveBall);
+            } else {
+              if (!gameOver) {
+                gameOver = true;
+                setTimeout(dropBall, 1000);
+              }
+            }
+          }
+        }
+        moveBall();
+      }
+
+      function handleCollision() {
+        if (!gameOver) {
+          isBallFlying = true;
+          // Setze eine zufällige Geschwindigkeit für den Ball
+          ballVelocity.set(
+            (Math.random() - 0.5) * 0.1,
+            0.1 + Math.random() * 0.1,
+            (Math.random() - 0.5) * 0.1
+          );
+          score += 1;
+          scoreboard.innerText = 'Punkte: ' + score;
+        }
+      }
+
+      // Gerätbewegung erfassen
+      let lastAcc = { x: null, y: null, z: null };
+      window.addEventListener('devicemotion', (event) => {
+        const acc = event.accelerationIncludingGravity;
+        if (lastAcc.x !== null) {
+          const deltaX = acc.x - lastAcc.x;
+          const deltaY = acc.y - lastAcc.y;
+          const deltaZ = acc.z - lastAcc.z;
+
+          const accChange = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+
+          // Schwellenwert für Bewegung (anpassen je nach Empfindlichkeit)
+          if (accChange > 3) {
+            // Überprüfe, ob der Ball nahe genug ist
+            const ballPos = new THREE.Vector3();
+            ball.object3D.getWorldPosition(ballPos);
+
+            const cameraPos = new THREE.Vector3();
+            camera.object3D.getWorldPosition(cameraPos);
+
+            const distance = ballPos.distanceTo(cameraPos);
+
+            if (distance < 1.5 && !isBallFlying) {
+              handleCollision();
+            }
+          }
+        }
+        lastAcc = {
+          x: acc.x,
+          y: acc.y,
+          z: acc.z
+        };
+      });
+
+      // Start des Spiels
+      window.addEventListener('load', () => {
+        // Für iOS muss die Erlaubnis für Bewegungssensoren eingeholt werden
+        if (
+          typeof DeviceMotionEvent !== 'undefined' &&
+          typeof DeviceMotionEvent.requestPermission === 'function'
+        ) {
+          DeviceMotionEvent.requestPermission()
+            .then((response) => {
+              if (response === 'granted') {
+                dropBall();
+              } else {
+                alert('Bewegungssensoren wurden nicht erlaubt.');
+              }
+            })
+            .catch(console.error);
+        } else {
+          dropBall();
+        }
+      });
     </script>
-</body>
+  </body>
 </html>
