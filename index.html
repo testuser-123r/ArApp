@@ -139,6 +139,10 @@
           );
           score += 1;
           scoreboard.innerText = 'Punkte: ' + score;
+          // Verstecke den Ball nach der Kollision
+          ball.setAttribute('visible', 'false');
+          // Nach kurzer Verzögerung einen neuen Ball fallen lassen
+          setTimeout(dropBall, 1000);
         }
       }
 
@@ -149,7 +153,9 @@
 
       // Event listener für Klick auf den Ball
       ball.addEventListener('click', () => {
-        handleCollision();
+        if (!isBallFlying) {
+          handleCollision(); // Punkte vergeben und Ball wegklicken
+        }
       });
 
       // Start des Spiels
@@ -159,4 +165,3 @@
     </script>
   </body>
 </html>
-
