@@ -1,15 +1,15 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Falling Ball AR-Spiel Optimiert</title>
+    <title>Falling Ball Game Optimized</title>
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no"
     />
     <!-- A-Frame Library -->
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <!-- AR.js für A-Frame -->
+    <!-- AR.js for A-Frame -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
     <style>
       body {
@@ -23,7 +23,6 @@
         color: #fff;
         font-size: 24px;
         z-index: 1;
-        font-family: Arial, sans-serif;
       }
     </style>
   </head>
@@ -31,28 +30,19 @@
     <div id="scoreboard">Punkte: 0</div>
     <a-scene
       embedded
-      arjs="
-        sourceType: webcam;
-        debugUIEnabled: true;
-        trackingBackend: artoolkit;
-        markersAreaEnabled: true;
-      "
+      arjs="sourceType: webcam; debugUIEnabled: false;"
       vr-mode-ui="enabled: false"
     >
-      <!-- Hiro Marker -->
-      <a-marker preset="hiro">
-        <!-- Ball -->
-        <a-sphere
-          id="ball"
-          position="0 3 0" <!-- Startposition höher setzen -->
-          radius="0.3"
-          color="#EF2D5E"
-          shadow
-          visible="false" <!-- Start unsichtbar -->
-        ></a-sphere>
-      </a-marker>
+      <!-- Ball -->
+      <a-sphere
+        id="ball"
+        position="0 2 -5"
+        radius="0.3"
+        color="#EF2D5E"
+        shadow
+      ></a-sphere>
 
-      <!-- Lichtquellen -->
+      <!-- Light Sources -->
       <a-light type="ambient" color="#888"></a-light>
       <a-light
         type="directional"
@@ -60,8 +50,8 @@
         position="0 1 0"
       ></a-light>
 
-      <!-- Kamera -->
-      <a-entity camera></a-entity>
+      <!-- Camera -->
+      <a-camera-static></a-camera-static>
     </a-scene>
 
     <script>
@@ -69,15 +59,16 @@
       let gameOver = false;
       const ball = document.getElementById('ball');
       const scoreboard = document.getElementById('scoreboard');
+      const camera = document.querySelector('a-camera-static');
 
       let ballVelocity = new THREE.Vector3();
       let isBallFlying = false;
 
       function dropBall() {
-        // Zufällige Startposition (links oder rechts innerhalb des Markers)
-        const startX = Math.random() < 0.5 ? -1.5 : 1.5;
-        const startY = 5; // Höhere Startposition
-        const startZ = 0;
+        // Zufällige Startposition (links oder rechts)
+        const startX = Math.random() < 0.5 ? -5 : 5;
+        const startY = Math.random() * 2 + 1; // Höhe zwischen 1 und 3
+        const startZ = -5;
 
         ball.setAttribute('position', `${startX} ${startY} ${startZ}`);
         ball.object3D.position.set(startX, startY, startZ);
@@ -91,30 +82,44 @@
       function animateBall() {
         const speed = 0.02;
 
+        // Richtung zum Spieler (Kamera) berechnen
+        const ballPos = new THREE.Vector3();
+        ball.object3D.getWorldPosition(ballPos);
+
+        const cameraPos = new THREE.Vector3();
+        camera.object3D.getWorldPosition(cameraPos);
+
+        const direction = new THREE.Vector3();
+        direction.subVectors(cameraPos, ballPos).normalize().multiplyScalar(speed);
+
         function moveBall() {
           if (!gameOver) {
             if (!isBallFlying) {
-              // Ball nach unten bewegen
-              ball.object3D.position.y -= speed;
+              ball.object3D.position.add(direction);
             } else {
-              // Ball bewegt sich nach oben (nach Kollision)
+              // Ball bewegt sich nach oben (wenn getroffen)
               ball.object3D.position.add(ballVelocity);
-              ballVelocity.multiplyScalar(0.98); // Verlangsamung durch Dämpfung
+              ballVelocity.multiplyScalar(0.98); // Verlangsamt den Ball
             }
 
-            // Überprüfen, ob der Ball nahe genug am Marker ist
-            if (!isBallFlying && ball.object3D.position.y <= 0.5) {
+            // Überprüfe, ob der Ball nahe genug ist
+            const currentBallPos = new THREE.Vector3();
+            ball.object3D.getWorldPosition(currentBallPos);
+
+            const distance = currentBallPos.distanceTo(cameraPos);
+
+            if (distance < 1 && !isBallFlying) {
               handleCollision();
             }
 
-            // Überprüfen, ob der Ball den unteren Bereich verlassen hat
-            if (ball.object3D.position.y < -2) {
+            // Überprüfe, ob der Ball außerhalb des Sichtfelds ist
+            if (currentBallPos.z < 1 && currentBallPos.y > -1 && currentBallPos.y < 5) {
+              requestAnimationFrame(moveBall);
+            } else {
               if (!gameOver) {
                 gameOver = true;
-                setTimeout(dropBall, 1000); // Neuen Ball nach 1 Sekunde fallen lassen
+                setTimeout(dropBall, 1000);
               }
-            } else {
-              requestAnimationFrame(moveBall);
             }
           }
         }
@@ -124,22 +129,18 @@
       function handleCollision() {
         if (!gameOver) {
           isBallFlying = true;
-          // Zufällige Geschwindigkeit nach oben setzen
+          // Setze eine zufällige Geschwindigkeit für den Ball
           ballVelocity.set(
             (Math.random() - 0.5) * 0.1,
-            0.3 + Math.random() * 0.2,
+            0.1 + Math.random() * 0.1,
             (Math.random() - 0.5) * 0.1
           );
           score += 1;
           scoreboard.innerText = 'Punkte: ' + score;
-          // Ball nach der Kollision ausblenden
-          setTimeout(() => {
-            ball.setAttribute('visible', 'false');
-          }, 500); // Ball nach 0.5 Sekunden ausblenden
         }
       }
 
-      // Gerätemotion erfassen
+      // Gerätbewegung erfassen
       let lastAcc = { x: null, y: null, z: null };
       window.addEventListener('devicemotion', (event) => {
         const acc = event.accelerationIncludingGravity;
@@ -152,11 +153,10 @@
 
           // Schwellenwert für Bewegung (anpassen je nach Empfindlichkeit)
           if (accChange > 3) {
-            // Überprüfen, ob der Ball nahe genug ist
+            // Überprüfe, ob der Ball nahe genug ist
             const ballPos = new THREE.Vector3();
             ball.object3D.getWorldPosition(ballPos);
 
-            const camera = document.querySelector('a-entity[camera]');
             const cameraPos = new THREE.Vector3();
             camera.object3D.getWorldPosition(cameraPos);
 
