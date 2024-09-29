@@ -44,11 +44,10 @@
         id="ball"
         class="clickable"
         position="0 2 -5"
-        radius="0.1"
+        radius="0.05" <!-- Radius weiter reduziert -->
         color="#EF2D5E"
         shadow
       ></a-sphere>
-      <!-- Der Ball ist jetzt kleiner -->
 
       <!-- Light Sources -->
       <a-light type="ambient" color="#888"></a-light>
@@ -105,12 +104,13 @@
             direction.subVectors(cameraPos, ballPos).normalize().multiplyScalar(speed);
             ball.object3D.position.add(direction);
 
-            // Überprüfe die Entfernung zwischen Ball und Kamera
+            // Optional: Entfernen der automatischen Kollisionsprüfung
+            /*
             const distance = ballPos.distanceTo(cameraPos);
-
             if (distance < 0.5) {
               handleCollision();
             }
+            */
 
             // Überprüfe, ob der Ball außerhalb des Sichtfelds ist
             if (ballPos.z < 0) {
@@ -162,6 +162,7 @@
 
       // Event listener für Klick auf den Ball
       ball.addEventListener('click', () => {
+        console.log('Ball wurde geklickt'); // Debugging-Zeile
         if (!isBallFlying) {
           handleCollision(); // Punkte vergeben und Ball wegklicken
         }
@@ -174,3 +175,4 @@
     </script>
   </body>
 </html>
+
