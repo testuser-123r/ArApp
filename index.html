@@ -37,16 +37,18 @@
     <a-scene
       embedded
       arjs="sourceType: webcam; debugUIEnabled: false;"
-      vr-mode-ui="enabled: false"
+      vr-mode-ui="enabled: false;"
     >
       <!-- Ball -->
       <a-sphere
         id="ball"
+        class="clickable"
         position="0 2 -5"
-        radius="0.1" <!-- Der Ball ist jetzt kleiner -->
+        radius="0.1"
         color="#EF2D5E"
         shadow
       ></a-sphere>
+      <!-- Der Ball ist jetzt kleiner -->
 
       <!-- Light Sources -->
       <a-light type="ambient" color="#888"></a-light>
@@ -56,8 +58,13 @@
         position="0 1 0"
       ></a-light>
 
-      <!-- Camera -->
-      <a-camera-static></a-camera-static>
+      <!-- Kamera mit Cursor -->
+      <a-camera-static>
+        <a-cursor
+          raycaster="objects: .clickable"
+          fuse="false"
+        ></a-cursor>
+      </a-camera-static>
     </a-scene>
 
     <script>
@@ -167,4 +174,3 @@
     </script>
   </body>
 </html>
-
