@@ -52,7 +52,10 @@
       <button onclick="restartGame()">Nochmal Spielen</button>
     </div>
 
-    <a-scene embedded vr-mode-ui="enabled: false">
+    <a-scene vr-mode-ui="enabled: false">
+      <!-- Himmel hinzufügen -->
+      <a-sky color="#87CEEB"></a-sky> <!-- Helles Blau für den Himmel -->
+
       <!-- Ball -->
       <a-sphere
         id="ball"
@@ -61,7 +64,7 @@
         radius="0.2"
         color="#FF6347" <!-- Attraktive Farbe (Tomatenrot) -->
         emissive="#FFA07A" <!-- Leichter Glanzeffekt -->
-        emissiveIntensity="0.5"
+        emissive-intensity="0.5"
         shadow
         visible="false"
       ></a-sphere>
@@ -100,23 +103,23 @@
 
         // Zufällige X-Position zwischen -1 und 1
         const startX = (Math.random() * 2 - 1).toFixed(2);
-        // Start-Y-Position über der Kamera
+        // Start-Y-Position etwas über der Kamera
         const startY = 3;
         // Z-Position leicht vor der Kamera
-        const startZ = -3;
+        const startZ = -5;
 
         ball.setAttribute('position', `${startX} ${startY} ${startZ}`);
         ball.setAttribute('visible', 'true');
-        ball.setAttribute('animation', {
+        ball.setAttribute('animation__fall', {
           property: 'position',
           to: `${startX} 0 ${startZ}`,
           dur: 5000, // 5 Sekunden bis zum Boden
           easing: 'linear',
           loop: false,
-          startEvents: 'spawnBall',
+          startEvents: 'startFall',
         });
         // Start der Animation
-        ball.emit('spawnBall');
+        ball.emit('startFall');
       }
 
       // Funktion, die aufgerufen wird, wenn der Ball geklickt wird
@@ -124,7 +127,7 @@
         if (ball.getAttribute('visible') === 'true' && gameActive) {
           // Ball ausblenden und Animation entfernen
           ball.setAttribute('visible', 'false');
-          ball.removeAttribute('animation');
+          ball.removeAttribute('animation__fall');
 
           // Nächsten Ball nach kurzer Verzögerung erzeugen
           setTimeout(spawnBall, 1000);
@@ -139,10 +142,8 @@
       }
 
       // Event Listener für das Ende der Animation (Ball erreicht den Boden)
-      ball.addEventListener('animationcomplete', (evt) => {
-        if (evt.detail.name === 'position') {
-          handleBallMiss();
-        }
+      ball.addEventListener('animationcomplete__fall', (evt) => {
+        handleBallMiss();
       });
 
       // Event Listener für Klicks auf den Ball
