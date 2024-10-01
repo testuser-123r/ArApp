@@ -15,15 +15,28 @@
       body {
         margin: 0;
         overflow: hidden;
+        background-color: #000; /* Dunkler Hintergrund für bessere Sichtbarkeit */
       }
-      #scoreboard {
+      #timer {
         position: absolute;
         top: 10px;
-        left: 10px;
+        right: 10px;
         color: #fff;
         font-size: 24px;
         z-index: 1;
         font-family: Arial, sans-serif;
+      }
+      #gameOver {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #fff;
+        font-size: 36px;
+        z-index: 2;
+        font-family: Arial, sans-serif;
+        display: none; /* Anfangs versteckt */
+        text-align: center;
       }
       /* Hide the video element if not using motion detection */
       #videoElement {
@@ -32,7 +45,8 @@
     </style>
   </head>
   <body>
-    <div id="scoreboard">Punkte: 0</div>
+    <div id="timer">Zeit: 0s</div>
+    <div id="gameOver">Spiel Vorbei!<br />Zeit: <span id="finalTime">0</span>s</div>
     <!-- Video element for motion detection (Optional: Remove if not using) -->
     <video id="videoElement" autoplay></video>
 
@@ -47,7 +61,7 @@
         id="ball"
         class="clickable"
         position="0 2 -5"
-        radius="0.05"
+        radius="0.2" <!-- Größerer Radius -->
         color="#EF2D5E"
         shadow
         visible="false" <!-- Initially hidden -->
@@ -67,23 +81,54 @@
     </a-scene>
 
     <script>
-      let score = 0;
+      let gameActive = true;
       const ball = document.getElementById('ball');
-      const scoreboard = document.getElementById('scoreboard');
       const scene = document.querySelector('a-scene');
+      const timerElement = document.getElementById('timer');
+      const gameOverElement = document.getElementById('gameOver');
+      const finalTimeElement = document.getElementById('finalTime');
+      let startTime;
+      let timerInterval;
 
-      // Function to update the scoreboard
-      function updateScore() {
-        scoreboard.innerText = 'Punkte: ' + score;
+      // Funktion, um den Timer zu starten
+      function startTimer() {
+        startTime = Date.now();
+        timerInterval = setInterval(() => {
+          const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+          timerElement.innerText = 'Zeit: ' + elapsedSeconds + 's';
+        }, 1000);
       }
 
-      // Function to spawn the ball at a random position above the camera
+      // Funktion, um den Timer zu stoppen
+      function stopTimer() {
+        clearInterval(timerInterval);
+      }
+
+      // Funktion, um den Timer zurückzusetzen
+      function resetTimer() {
+        timerElement.innerText = 'Zeit: 0s';
+      }
+
+      // Funktion, um das Spiel zu beenden
+      function endGame() {
+        gameActive = false;
+        stopTimer();
+        const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+        finalTimeElement.innerText = elapsedSeconds;
+        gameOverElement.style.display = 'block';
+        ball.setAttribute('visible', 'false');
+        ball.removeAttribute('animation');
+      }
+
+      // Funktion, um den Ball zu erzeugen
       function spawnBall() {
-        // Random X position between -1 and 1
+        if (!gameActive) return;
+
+        // Zufällige X-Position zwischen -1 und 1
         const startX = (Math.random() * 2 - 1).toFixed(2);
-        // Starting Y position above the camera
+        // Start-Y-Position über der Kamera
         const startY = 3;
-        // Z position slightly in front of the camera
+        // Z-Position leicht vor der Kamera
         const startZ = -3;
 
         ball.setAttribute('position', `${startX} ${startY} ${startZ}`);
@@ -91,59 +136,50 @@
         ball.setAttribute('animation', {
           property: 'position',
           to: `${startX} 0 ${startZ}`,
-          dur: 5000, // 5 seconds for the ball to reach the ground
+          dur: 5000, // 5 Sekunden bis zum Boden
           easing: 'linear',
           loop: false,
           startEvents: 'spawnBall',
         });
-        // Start the animation
+        // Start der Animation
         ball.emit('spawnBall');
       }
 
-      // Function to handle when the ball is clicked
+      // Funktion, die aufgerufen wird, wenn der Ball geklickt wird
       function handleBallClick() {
-        if (ball.getAttribute('visible') === 'true') {
-          // Increment score
-          score += 1;
-          updateScore();
-
-          // Hide the ball
+        if (ball.getAttribute('visible') === 'true' && gameActive) {
+          // Ball ausblenden und Animation entfernen
           ball.setAttribute('visible', 'false');
-          // Remove any ongoing animations
           ball.removeAttribute('animation');
 
-          // Schedule the next ball spawn after 5 seconds
-          setTimeout(spawnBall, 5000);
+          // Nächsten Ball nach kurzer Verzögerung erzeugen
+          setTimeout(spawnBall, 1000);
         }
       }
 
-      // Function to handle when the ball reaches the ground without being clicked
+      // Funktion, die aufgerufen wird, wenn der Ball den Boden erreicht
       function handleBallMiss() {
         if (ball.getAttribute('visible') === 'true') {
-          // Optionally, you can implement lives or penalties here
-          // For now, just reset the ball
-          ball.setAttribute('visible', 'false');
-          ball.removeAttribute('animation');
-
-          // Schedule the next ball spawn after 5 seconds
-          setTimeout(spawnBall, 5000);
+          endGame();
         }
       }
 
-      // Listen for the end of the animation (ball reaching the ground)
+      // Event Listener für das Ende der Animation (Ball erreicht den Boden)
       ball.addEventListener('animationcomplete', (evt) => {
         if (evt.detail.name === 'position') {
           handleBallMiss();
         }
       });
 
-      // Listen for click events on the ball
+      // Event Listener für Klicks auf den Ball
       ball.addEventListener('click', handleBallClick);
 
-      // Start the game by spawning the first ball when the scene is loaded
+      // Event Listener, wenn die Szene geladen ist
       scene.addEventListener('loaded', () => {
+        startTimer();
         spawnBall();
       });
     </script>
   </body>
 </html>
+
