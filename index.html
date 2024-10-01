@@ -17,15 +17,6 @@
         overflow: hidden;
         background-color: #000; /* Dunkler Hintergrund für bessere Sichtbarkeit */
       }
-      #timer {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        color: #fff;
-        font-size: 24px;
-        z-index: 1;
-        font-family: Arial, sans-serif;
-      }
       #gameOver {
         position: absolute;
         top: 50%;
@@ -61,10 +52,8 @@
     </style>
   </head>
   <body>
-    <div id="timer">Zeit: 0s</div>
     <div id="gameOver">
       Spiel Vorbei!<br />
-      Zeit: <span id="finalTime">0</span>s<br />
       <button onclick="restartGame()">Nochmal Spielen</button>
     </div>
     <!-- Video element for motion detection (Optional: Remove if not using) -->
@@ -106,37 +95,11 @@
       let gameActive = true;
       const ball = document.getElementById('ball');
       const scene = document.querySelector('a-scene');
-      const timerElement = document.getElementById('timer');
       const gameOverElement = document.getElementById('gameOver');
-      const finalTimeElement = document.getElementById('finalTime');
-      let startTime;
-      let timerInterval;
-
-      // Funktion, um den Timer zu starten
-      function startTimer() {
-        startTime = Date.now();
-        timerInterval = setInterval(() => {
-          const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-          timerElement.innerText = 'Zeit: ' + elapsedSeconds + 's';
-        }, 1000);
-      }
-
-      // Funktion, um den Timer zu stoppen
-      function stopTimer() {
-        clearInterval(timerInterval);
-      }
-
-      // Funktion, um den Timer zurückzusetzen
-      function resetTimer() {
-        timerElement.innerText = 'Zeit: 0s';
-      }
 
       // Funktion, um das Spiel zu beenden
       function endGame() {
         gameActive = false;
-        stopTimer();
-        const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-        finalTimeElement.innerText = elapsedSeconds;
         gameOverElement.style.display = 'block';
         ball.setAttribute('visible', 'false');
         ball.removeAttribute('animation');
@@ -198,7 +161,6 @@
 
       // Event Listener, wenn die Szene geladen ist
       scene.addEventListener('loaded', () => {
-        startTimer();
         spawnBall();
       });
 
@@ -206,9 +168,6 @@
       function restartGame() {
         // Verstecke die Game Over Nachricht
         gameOverElement.style.display = 'none';
-        // Timer zurücksetzen und neu starten
-        resetTimer();
-        startTimer();
         // Setze den Spielstatus zurück
         gameActive = true;
         // Spawne den Ball erneut
@@ -217,5 +176,4 @@
     </script>
   </body>
 </html>
-
 
