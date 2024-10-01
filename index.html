@@ -37,6 +37,22 @@
         font-family: Arial, sans-serif;
         display: none; /* Anfangs versteckt */
         text-align: center;
+        background: rgba(0, 0, 0, 0.7); /* Halbtransparenter Hintergrund */
+        padding: 20px;
+        border-radius: 10px;
+      }
+      #gameOver button {
+        margin-top: 20px;
+        padding: 10px 20px;
+        font-size: 18px;
+        background-color: #28a745;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      #gameOver button:hover {
+        background-color: #218838;
       }
       /* Hide the video element if not using motion detection */
       #videoElement {
@@ -46,7 +62,11 @@
   </head>
   <body>
     <div id="timer">Zeit: 0s</div>
-    <div id="gameOver">Spiel Vorbei!<br />Zeit: <span id="finalTime">0</span>s</div>
+    <div id="gameOver">
+      Spiel Vorbei!<br />
+      Zeit: <span id="finalTime">0</span>s<br />
+      <button onclick="restartGame()">Nochmal Spielen</button>
+    </div>
     <!-- Video element for motion detection (Optional: Remove if not using) -->
     <video id="videoElement" autoplay></video>
 
@@ -62,7 +82,9 @@
         class="clickable"
         position="0 2 -5"
         radius="0.2" <!-- Größerer Radius -->
-        color="#EF2D5E"
+        color="#FFD700" <!-- Schöne goldene Farbe -->
+        emissive="#FF8C00" <!-- Leichter Glanzeffekt -->
+        emissiveIntensity="0.5"
         shadow
         visible="false" <!-- Initially hidden -->
       ></a-sphere>
@@ -179,7 +201,21 @@
         startTimer();
         spawnBall();
       });
+
+      // Funktion, um das Spiel neu zu starten
+      function restartGame() {
+        // Verstecke die Game Over Nachricht
+        gameOverElement.style.display = 'none';
+        // Timer zurücksetzen und neu starten
+        resetTimer();
+        startTimer();
+        // Setze den Spielstatus zurück
+        gameActive = true;
+        // Spawne den Ball erneut
+        spawnBall();
+      }
     </script>
   </body>
 </html>
+
 
