@@ -2,14 +2,14 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Falling Ball Game with Focused Motion Detection</title>
+    <title>Falling Ball Game</title>
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=no"
     />
     <!-- A-Frame Library -->
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <!-- AR.js for A-Frame -->
+    <!-- AR.js for A-Frame (Optional: Remove if not using AR features) -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
     <style>
       body {
@@ -23,7 +23,9 @@
         color: #fff;
         font-size: 24px;
         z-index: 1;
+        font-family: Arial, sans-serif;
       }
+      /* Hide the video element if not using motion detection */
       #videoElement {
         display: none;
       }
@@ -31,148 +33,117 @@
   </head>
   <body>
     <div id="scoreboard">Punkte: 0</div>
-    <!-- Videoelement für die Bewegungserkennung -->
+    <!-- Video element for motion detection (Optional: Remove if not using) -->
     <video id="videoElement" autoplay></video>
 
     <a-scene
       embedded
       arjs="sourceType: webcam; debugUIEnabled: false;"
       vr-mode-ui="enabled: false;"
+      cursor="rayOrigin: mouse" <!-- Use mouse cursor for desktop -->
     >
       <!-- Ball -->
       <a-sphere
         id="ball"
         class="clickable"
         position="0 2 -5"
-        radius="0.05" <!-- Radius weiter reduziert -->
+        radius="0.05"
         color="#EF2D5E"
         shadow
+        visible="false" <!-- Initially hidden -->
       ></a-sphere>
 
       <!-- Light Sources -->
       <a-light type="ambient" color="#888"></a-light>
-      <a-light
-        type="directional"
-        intensity="0.5"
-        position="0 1 0"
-      ></a-light>
+      <a-light type="directional" intensity="0.5" position="0 1 0"></a-light>
 
-      <!-- Kamera mit Cursor -->
-      <a-camera-static>
+      <!-- Camera with Cursor -->
+      <a-camera position="0 1.6 0">
         <a-cursor
-          raycaster="objects: .clickable"
           fuse="false"
+          raycaster="objects: .clickable"
         ></a-cursor>
-      </a-camera-static>
+      </a-camera>
     </a-scene>
 
     <script>
       let score = 0;
       const ball = document.getElementById('ball');
       const scoreboard = document.getElementById('scoreboard');
-      const camera = document.querySelector('a-camera-static');
+      const scene = document.querySelector('a-scene');
 
-      let ballVelocity = new THREE.Vector3();
-      let isBallFlying = false;
+      // Function to update the scoreboard
+      function updateScore() {
+        scoreboard.innerText = 'Punkte: ' + score;
+      }
 
-      function dropBall() {
-        // Zufällige Startposition innerhalb eines kleineren Bereichs
-        const startX = (Math.random() * 1.6 - 0.8).toFixed(2); // Zwischen -0.8 und 0.8
-        const startY = (Math.random() * 1 + 1.5).toFixed(2); // Höhe zwischen 1.5 und 2.5
-        const startZ = -4; // Etwas weiter von der Kamera entfernt
+      // Function to spawn the ball at a random position above the camera
+      function spawnBall() {
+        // Random X position between -1 and 1
+        const startX = (Math.random() * 2 - 1).toFixed(2);
+        // Starting Y position above the camera
+        const startY = 3;
+        // Z position slightly in front of the camera
+        const startZ = -3;
 
         ball.setAttribute('position', `${startX} ${startY} ${startZ}`);
-        ball.setAttribute('visible', 'true'); // Ball wird sichtbar
-        isBallFlying = false;
-        ballVelocity.set(0, 0, 0);
-        animateBall();
+        ball.setAttribute('visible', 'true');
+        ball.setAttribute('animation', {
+          property: 'position',
+          to: `${startX} 0 ${startZ}`,
+          dur: 5000, // 5 seconds for the ball to reach the ground
+          easing: 'linear',
+          loop: false,
+          startEvents: 'spawnBall',
+        });
+        // Start the animation
+        ball.emit('spawnBall');
       }
 
-      function animateBall() {
-        const speed = 0.02;
-
-        function moveBall() {
-          if (!isBallFlying) {
-            // Bewege den Ball auf die Kamera zu
-            const ballPos = new THREE.Vector3();
-            ball.object3D.getWorldPosition(ballPos);
-
-            const cameraPos = new THREE.Vector3();
-            camera.object3D.getWorldPosition(cameraPos);
-
-            const direction = new THREE.Vector3();
-            direction.subVectors(cameraPos, ballPos).normalize().multiplyScalar(speed);
-            ball.object3D.position.add(direction);
-
-            // Optional: Entfernen der automatischen Kollisionsprüfung
-            /*
-            const distance = ballPos.distanceTo(cameraPos);
-            if (distance < 0.5) {
-              handleCollision();
-            }
-            */
-
-            // Überprüfe, ob der Ball außerhalb des Sichtfelds ist
-            if (ballPos.z < 0) {
-              requestAnimationFrame(moveBall);
-            } else {
-              // Ball verpasst
-              resetBall();
-            }
-          } else {
-            // Ball bewegt sich nach oben (wenn getroffen)
-            ball.object3D.position.add(ballVelocity);
-            ballVelocity.multiplyScalar(0.98); // Verlangsamt den Ball
-
-            // Wenn der Ball weit genug weggeflogen ist, zurücksetzen
-            if (ball.object3D.position.y > 5) {
-              resetBall();
-            } else {
-              requestAnimationFrame(moveBall);
-            }
-          }
-        }
-        moveBall();
-      }
-
-      function handleCollision() {
-        if (!isBallFlying) {
-          isBallFlying = true;
-          // Punkte erhöhen
+      // Function to handle when the ball is clicked
+      function handleBallClick() {
+        if (ball.getAttribute('visible') === 'true') {
+          // Increment score
           score += 1;
-          scoreboard.innerText = 'Punkte: ' + score;
+          updateScore();
 
-          // Ball ausblenden und Animation stoppen
+          // Hide the ball
           ball.setAttribute('visible', 'false');
-          ballVelocity.set(
-            (Math.random() - 0.5) * 0.05,
-            0.1 + Math.random() * 0.05,
-            (Math.random() - 0.5) * 0.05
-          );
+          // Remove any ongoing animations
+          ball.removeAttribute('animation');
 
-          // Nach einer kurzen Verzögerung einen neuen Ball fallen lassen
-          setTimeout(dropBall, 1000);
+          // Schedule the next ball spawn after 5 seconds
+          setTimeout(spawnBall, 5000);
         }
       }
 
-      function resetBall() {
-        ball.setAttribute('visible', 'false');
-        setTimeout(dropBall, 1000); // Nach einer Sekunde den Ball erneut fallen lassen
+      // Function to handle when the ball reaches the ground without being clicked
+      function handleBallMiss() {
+        if (ball.getAttribute('visible') === 'true') {
+          // Optionally, you can implement lives or penalties here
+          // For now, just reset the ball
+          ball.setAttribute('visible', 'false');
+          ball.removeAttribute('animation');
+
+          // Schedule the next ball spawn after 5 seconds
+          setTimeout(spawnBall, 5000);
+        }
       }
 
-      // Event listener für Klick auf den Ball
-      ball.addEventListener('click', () => {
-        console.log('Ball wurde geklickt'); // Debugging-Zeile
-        if (!isBallFlying) {
-          handleCollision(); // Punkte vergeben und Ball wegklicken
+      // Listen for the end of the animation (ball reaching the ground)
+      ball.addEventListener('animationcomplete', (evt) => {
+        if (evt.detail.name === 'position') {
+          handleBallMiss();
         }
       });
 
-      // Start des Spiels
-      window.addEventListener('load', () => {
-        dropBall();
+      // Listen for click events on the ball
+      ball.addEventListener('click', handleBallClick);
+
+      // Start the game by spawning the first ball when the scene is loaded
+      scene.addEventListener('loaded', () => {
+        spawnBall();
       });
     </script>
   </body>
 </html>
-
